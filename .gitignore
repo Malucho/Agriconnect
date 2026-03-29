@@ -1,0 +1,15 @@
+# Logs
+logs/*.log
+
+# Uploads
+uploads/products/*
+uploads/profiles/*
+!uploads/products/.gitkeep
+!uploads/profiles/.gitkeep
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# XAMPP / Local Server files
+.htaccess
