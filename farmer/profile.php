@@ -11,6 +11,7 @@ if (!isLoggedIn() || $_SESSION['user_type'] != 'farmer') {
 }
 
 $userId = $_SESSION['user_id'];
+$unreadMessages = getUnreadMessagesCount($userId);
 
 // Get farmer profile data
 $query = "SELECT u.*, f.* FROM users u 
@@ -31,19 +32,21 @@ $farmer = $result->fetch_assoc();
 
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
-    $username = sanitizeInput($_POST['username']);
-    $email = sanitizeInput($_POST['email']);
-    $phone = sanitizeInput($_POST['phone']);
-    $farm_name = sanitizeInput($_POST['farm_name']);
-    $farm_location = sanitizeInput($_POST['farm_location']);
-    $farm_description = sanitizeInput($_POST['farm_description']);
-    $farming_practices = sanitizeInput($_POST['farming_practices']);
+    $first_name = sanitize($_POST['first_name']);
+    $last_name = sanitize($_POST['last_name']);
+    $email = sanitize($_POST['email']);
+    $phone = sanitize($_POST['phone']);
+    $farm_name = sanitize($_POST['farm_name']);
+    $county = sanitize($_POST['county']);
+    $location = sanitize($_POST['location']);
+    $farm_description = sanitize($_POST['farm_description']);
+    $farming_practices = sanitize($_POST['farming_practices']);
     
     // Validate inputs
     $errors = [];
     
-    if (empty($username)) {
-        $errors[] = "Username is required";
+    if (empty($first_name) || empty($last_name)) {
+        $errors[] = "First and last name are required";
     }
     
     if (empty($email)) {
@@ -60,8 +63,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
         $errors[] = "Farm name is required";
     }
     
-    if (empty($farm_location)) {
-        $errors[] = "Farm location is required";
+    if (empty($county)) {
+        $errors[] = "County is required";
+    }
+    
+    if (empty($location)) {
+        $errors[] = "Location is required";
     }
     
     // Check if email already exists for another user
@@ -83,50 +90,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
         
         try {
             // Update user table
-            $query = "UPDATE users SET username = ?, email = ?, phone = ? WHERE id = ?";
+            $query = "UPDATE users SET first_name = ?, last_name = ?, email = ?, phone = ? WHERE id = ?";
             $stmt = $conn->prepare($query);
-            $stmt->bind_param("sssi", $username, $email, $phone, $userId);
+            $stmt->bind_param("ssssi", $first_name, $last_name, $email, $phone, $userId);
             $stmt->execute();
             
             // Update farmer_profiles table
-            $query = "UPDATE farmer_profiles SET farm_name = ?, farm_location = ?, farm_description = ?, farming_practices = ? WHERE user_id = ?";
+            $query = "UPDATE farmer_profiles SET farm_name = ?, county = ?, location = ?, farm_description = ?, farming_practices = ? WHERE user_id = ?";
             $stmt = $conn->prepare($query);
-            $stmt->bind_param("ssssi", $farm_name, $farm_location, $farm_description, $farming_practices, $userId);
+            $stmt->bind_param("sssssi", $farm_name, $county, $location, $farm_description, $farming_practices, $userId);
             $stmt->execute();
             
             // Handle profile image upload
             if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
                 $allowed = ['jpg', 'jpeg', 'png', 'gif'];
                 $filename = $_FILES['profile_image']['name'];
-                $filetype = pathinfo($filename, PATHINFO_EXTENSION);
+                $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
                 
-                if (in_array(strtolower($filetype), $allowed)) {
-                    $new_filename = 'farmer_' . $userId . '_' . time() . '.' . $filetype;
-                    $upload_path = '../uploads/farmers/' . $new_filename;
+                if (in_array($ext, $allowed)) {
+                    $newFilename = 'farmer_' . $userId . '_' . time() . '.' . $ext;
+                    $uploadPath = '../uploads/profiles/' . $newFilename;
                     
-                    // Create directory if it doesn't exist
-                    if (!file_exists('../uploads/farmers/')) {
-                        mkdir('../uploads/farmers/', 0777, true);
-                    }
-                    
-                    if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $upload_path)) {
+                    if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $uploadPath)) {
                         // Update profile image in database
-                        $image_path = 'uploads/farmers/' . $new_filename;
                         $query = "UPDATE farmer_profiles SET profile_image = ? WHERE user_id = ?";
                         $stmt = $conn->prepare($query);
-                        $stmt->bind_param("si", $image_path, $userId);
+                        $stmt->bind_param("si", $newFilename, $userId);
                         $stmt->execute();
                     }
                 }
             }
             
             $conn->commit();
+            
+            // Update session variables
+            $_SESSION['first_name'] = $first_name;
+            $_SESSION['last_name'] = $last_name;
+            
             setFlashMessage('success', 'Profile updated successfully');
             redirect('profile.php');
             exit();
         } catch (Exception $e) {
             $conn->rollback();
-            setFlashMessage('error', 'Failed to update profile: ' . $e->getMessage());
+            setFlashMessage('error', 'Error updating profile: ' . $e->getMessage());
         }
     } else {
         // Set error messages
@@ -196,6 +202,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_password'])) {
     }
 }
 
+$page_title = 'My Profile';
+include '../includes/head.php';
 include '../includes/header.php';
 ?>
 
@@ -204,13 +212,13 @@ include '../includes/header.php';
         <div class="farmer-profile">
             <div class="farmer-avatar">
                 <?php if (!empty($farmer['profile_image'])): ?>
-                    <img src="<?php echo '../' . htmlspecialchars($farmer['profile_image']); ?>" alt="Profile Image">
+                    <img src="<?php echo '../uploads/profiles/' . htmlspecialchars($farmer['profile_image']); ?>" alt="Profile Image">
                 <?php else: ?>
                     <i class="fas fa-user-circle"></i>
                 <?php endif; ?>
             </div>
-            <h3><?php echo htmlspecialchars($farmer['username']); ?></h3>
-            <p>Farmer</p>
+            <h3><?php echo htmlspecialchars($farmer['first_name'] . ' ' . $farmer['last_name']); ?></h3>
+            <p><?php echo htmlspecialchars($farmer['farm_name'] ?? 'Farmer'); ?></p>
         </div>
         <nav class="dashboard-nav">
             <ul>
@@ -218,7 +226,11 @@ include '../includes/header.php';
                 <li><a href="products.php"><i class="fas fa-leaf"></i> My Products</a></li>
                 <li><a href="orders.php"><i class="fas fa-shopping-basket"></i> Orders</a></li>
                 <li class="active"><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
-                <li><a href="messages.php"><i class="fas fa-envelope"></i> Messages</a></li>
+                <li><a href="messages.php"><i class="fas fa-envelope"></i> Messages
+                    <?php if ($unreadMessages > 0): ?>
+                        <span class="badge"><?php echo $unreadMessages; ?></span>
+                    <?php endif; ?>
+                </a></li>
             </ul>
         </nav>
     </div>
@@ -236,8 +248,13 @@ include '../includes/header.php';
                 <form action="" method="POST" enctype="multipart/form-data" class="profile-form">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="username">Username</label>
-                            <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($farmer['username']); ?>" required>
+                            <label for="first_name">First Name</label>
+                            <input type="text" id="first_name" name="first_name" value="<?php echo htmlspecialchars($farmer['first_name']); ?>" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="last_name">Last Name</label>
+                            <input type="text" id="last_name" name="last_name" value="<?php echo htmlspecialchars($farmer['last_name']); ?>" required>
                         </div>
                         
                         <div class="form-group">
@@ -255,7 +272,7 @@ include '../includes/header.php';
                             <div class="image-upload-container">
                                 <div class="current-image">
                                     <?php if (!empty($farmer['profile_image'])): ?>
-                                        <img src="<?php echo '../' . htmlspecialchars($farmer['profile_image']); ?>" alt="Current Profile Image" id="profile-preview">
+                                        <img src="<?php echo '../uploads/profiles/' . htmlspecialchars($farmer['profile_image']); ?>" alt="Current Profile Image" id="profile-preview">
                                     <?php else: ?>
                                         <div class="no-image" id="profile-preview-placeholder">
                                             <i class="fas fa-user"></i>
@@ -264,7 +281,6 @@ include '../includes/header.php';
                                     <?php endif; ?>
                                 </div>
                                 <input type="file" id="profile_image" name="profile_image" accept="image/*">
-                                <label for="profile_image" class="file-upload-btn">Choose Image</label>
                             </div>
                         </div>
                     </div>
@@ -277,8 +293,13 @@ include '../includes/header.php';
                         </div>
                         
                         <div class="form-group">
-                            <label for="farm_location">Farm Location</label>
-                            <input type="text" id="farm_location" name="farm_location" value="<?php echo htmlspecialchars($farmer['farm_location']); ?>" required>
+                            <label for="county">County</label>
+                            <input type="text" id="county" name="county" value="<?php echo htmlspecialchars($farmer['county']); ?>" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="location">Location</label>
+                            <input type="text" id="location" name="location" value="<?php echo htmlspecialchars($farmer['location']); ?>" required>
                         </div>
                         
                         <div class="form-group full-width">

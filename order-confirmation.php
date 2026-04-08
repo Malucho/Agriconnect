@@ -5,20 +5,20 @@ require_once 'includes/functions.php';
 
 // Check if user is logged in and is a consumer
 if (!isLoggedIn()) {
-    setFlashMessage('error', 'You must be logged in to view order confirmation');
+    setFlashMessage('You must be logged in to view order confirmation', 'danger');
     redirect('login.php');
     exit();
 }
 
 if ($_SESSION['user_type'] != 'consumer') {
-    setFlashMessage('error', 'Only consumers can view order confirmation');
+    setFlashMessage('Only consumers can view order confirmation', 'danger');
     redirect('marketplace.php');
     exit();
 }
 
 // Check if order ID is provided
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    setFlashMessage('error', 'Invalid order ID');
+    setFlashMessage('Invalid order ID', 'danger');
     redirect('marketplace.php');
     exit();
 }
@@ -27,14 +27,14 @@ $orderId = $_GET['id'];
 $userId = $_SESSION['user_id'];
 
 // Get order details
-$query = "SELECT * FROM orders WHERE id = ? AND user_id = ?";
+$query = "SELECT * FROM orders WHERE id = ? AND consumer_id = ?";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("ii", $orderId, $userId);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows == 0) {
-    setFlashMessage('error', 'Order not found or you do not have permission to view it');
+    setFlashMessage('Order not found or you do not have permission to view it', 'danger');
     redirect('marketplace.php');
     exit();
 }
@@ -42,12 +42,11 @@ if ($result->num_rows == 0) {
 $order = $result->fetch_assoc();
 
 // Get order items grouped by farmer
-$query = "SELECT oi.*, p.name as product_name, p.price, p.unit, 
-          u.username as farmer_name, u.id as farmer_id,
-          (SELECT image_url FROM product_images WHERE product_id = p.id LIMIT 1) as image_url
+$query = "SELECT oi.*, p.name as product_name, p.price, p.unit, p.image,
+          u.first_name as farmer_first_name, u.last_name as farmer_last_name, u.id as farmer_id
           FROM order_items oi
           JOIN products p ON oi.product_id = p.id
-          JOIN users u ON p.user_id = u.id
+          JOIN users u ON p.farmer_id = u.id
           WHERE oi.order_id = ?
           ORDER BY u.id";
 $stmt = $conn->prepare($query);
@@ -64,7 +63,7 @@ while ($item = $result->fetch_assoc()) {
     // Group by farmer
     if (!isset($farmerGroups[$item['farmer_id']])) {
         $farmerGroups[$item['farmer_id']] = [
-            'farmer_name' => $item['farmer_name'],
+            'farmer_name' => $item['farmer_first_name'] . ' ' . $item['farmer_last_name'],
             'items' => []
         ];
     }
@@ -72,170 +71,71 @@ while ($item = $result->fetch_assoc()) {
     $farmerGroups[$item['farmer_id']]['items'][] = $item;
 }
 
+$page_title = 'Order Confirmation';
+include 'includes/head.php';
 include 'includes/header.php';
 ?>
 
-<div class="order-confirmation-container">
-    <div class="confirmation-header">
-        <div class="confirmation-icon">
+<div class="container" style="padding: 60px 15px; text-align: center;">
+    <div class="confirmation-header" style="margin-bottom: 40px;">
+        <div class="confirmation-icon" style="font-size: 5rem; color: #4CAF50; margin-bottom: 20px;">
             <i class="fas fa-check-circle"></i>
         </div>
-        <h1>Order Confirmed!</h1>
-        <p>Your order has been placed successfully. Thank you for shopping with Agriconnect!</p>
+        <h1 style="font-size: 2.5rem; margin-bottom: 10px;">Order Confirmed!</h1>
+        <p style="font-size: 1.1rem; color: #777;">Your order #<?php echo $orderId; ?> has been placed successfully. Thank you for shopping with Agriconnect!</p>
     </div>
     
-    <div class="order-details">
-        <div class="order-info-section">
-            <h2>Order Information</h2>
-            <div class="info-grid">
-                <div class="info-item">
-                    <span class="info-label">Order Number:</span>
-                    <span class="info-value">#<?php echo $orderId; ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Order Date:</span>
-                    <span class="info-value"><?php echo date('F d, Y h:i A', strtotime($order['created_at'])); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Payment Method:</span>
-                    <span class="info-value"><?php echo htmlspecialchars($order['payment_method']); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Delivery Method:</span>
-                    <span class="info-value"><?php echo ucfirst(htmlspecialchars($order['delivery_method'])); ?> Delivery</span>
-                </div>
+    <div class="order-details-card" style="max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.1); text-align: left;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
+            <div>
+                <h2 style="font-size: 1.2rem; margin-bottom: 15px;">Order Information</h2>
+                <div style="margin-bottom: 8px;"><span style="font-weight: 600;">Date:</span> <?php echo date('F d, Y h:i A', strtotime($order['order_date'])); ?></div>
+                <div style="margin-bottom: 8px;"><span style="font-weight: 600;">Payment Method:</span> <?php echo str_replace('_', ' ', ucfirst($order['payment_method'])); ?></div>
+                <div style="margin-bottom: 8px;"><span style="font-weight: 600;">Payment Status:</span> <?php echo ucfirst($order['payment_status']); ?></div>
+            </div>
+            <div>
+                <h2 style="font-size: 1.2rem; margin-bottom: 15px;">Delivery Address</h2>
+                <div style="line-height: 1.6;"><?php echo nl2br(htmlspecialchars($order['delivery_address'])); ?></div>
             </div>
         </div>
-        
-        <div class="shipping-info-section">
-            <h2>Shipping Information</h2>
-            <div class="info-grid">
-                <div class="info-item">
-                    <span class="info-label">Address:</span>
-                    <span class="info-value"><?php echo htmlspecialchars($order['shipping_address']); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">City:</span>
-                    <span class="info-value"><?php echo htmlspecialchars($order['shipping_city']); ?></span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Phone:</span>
-                    <span class="info-value"><?php echo htmlspecialchars($order['shipping_phone']); ?></span>
-                </div>
-                <?php if (!empty($order['notes'])): ?>
-                    <div class="info-item full-width">
-                        <span class="info-label">Notes:</span>
-                        <span class="info-value"><?php echo htmlspecialchars($order['notes']); ?></span>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-        
-        <div class="order-items-section">
-            <h2>Order Summary</h2>
-            
-            <?php foreach ($farmerGroups as $farmerId => $farmerGroup): ?>
-                <div class="farmer-group">
-                    <h3>From: <?php echo htmlspecialchars($farmerGroup['farmer_name']); ?></h3>
-                    
-                    <div class="order-items">
-                        <?php foreach ($farmerGroup['items'] as $item): ?>
-                            <div class="order-item">
-                                <div class="item-image">
-                                    <?php if ($item['image_url']): ?>
-                                        <img src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['product_name']); ?>">
+
+        <h2 style="font-size: 1.2rem; margin-bottom: 20px;">Order Summary</h2>
+        <div class="order-summary-items">
+            <?php foreach ($farmerGroups as $farmerId => $group): ?>
+                <div style="margin-bottom: 20px; border-bottom: 1px solid #f9f9f9; padding-bottom: 15px;">
+                    <h3 style="font-size: 1rem; color: #4CAF50; margin-bottom: 12px;">Farmer: <?php echo htmlspecialchars($group['farmer_name']); ?></h3>
+                    <?php foreach ($group['items'] as $item): ?>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 40px; height: 40px; background: #eee; border-radius: 4px; overflow: hidden; flex-shrink: 0;">
+                                    <?php if ($item['image']): ?>
+                                        <img src="uploads/products/<?php echo htmlspecialchars($item['image']); ?>" alt="Product" style="width: 100%; height: 100%; object-fit: cover;">
                                     <?php else: ?>
-                                        <div class="no-image"><i class="fas fa-image"></i></div>
+                                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #ccc;"><i class="fas fa-image"></i></div>
                                     <?php endif; ?>
                                 </div>
-                                <div class="item-details">
-                                    <h4><?php echo htmlspecialchars($item['product_name']); ?></h4>
-                                    <p>KSh <?php echo number_format($item['price'], 2); ?> / <?php echo htmlspecialchars($item['unit']); ?></p>
-                                    <p>Quantity: <?php echo $item['quantity']; ?></p>
-                                </div>
-                                <div class="item-price">
-                                    <p>KSh <?php echo number_format($item['price'] * $item['quantity'], 2); ?></p>
+                                <div>
+                                    <div style="font-weight: 600;"><?php echo htmlspecialchars($item['product_name']); ?></div>
+                                    <div style="font-size: 0.85rem; color: #777;"><?php echo $item['quantity']; ?> x <?php echo formatPrice($item['price']); ?></div>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
-                    </div>
+                            <div style="font-weight: 600;"><?php echo formatPrice($item['subtotal']); ?></div>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
             <?php endforeach; ?>
-            
-            <div class="order-totals">
-                <div class="total-row">
-                    <span>Subtotal:</span>
-                    <span>KSh <?php echo number_format($order['total_amount'] - $order['delivery_fee'], 2); ?></span>
-                </div>
-                <div class="total-row">
-                    <span>Delivery Fee:</span>
-                    <span>KSh <?php echo number_format($order['delivery_fee'], 2); ?></span>
-                </div>
-                <div class="total-row grand-total">
-                    <span>Total:</span>
-                    <span>KSh <?php echo number_format($order['total_amount'], 2); ?></span>
-                </div>
-            </div>
         </div>
-        
-        <div class="payment-instructions">
-            <h2>Payment Instructions</h2>
-            
-            <?php if ($order['payment_method'] == 'M-Pesa'): ?>
-                <div class="payment-method-instructions">
-                    <h3>M-Pesa Payment</h3>
-                    <ol>
-                        <li>Go to M-Pesa on your phone</li>
-                        <li>Select "Lipa na M-Pesa"</li>
-                        <li>Select "Pay Bill"</li>
-                        <li>Enter Business Number: <strong>123456</strong></li>
-                        <li>Enter Account Number: <strong>AG<?php echo $orderId; ?></strong></li>
-                        <li>Enter Amount: <strong>KSh <?php echo number_format($order['total_amount'], 2); ?></strong></li>
-                        <li>Enter your M-Pesa PIN</li>
-                        <li>Confirm the transaction</li>
-                    </ol>
-                </div>
-            <?php elseif ($order['payment_method'] == 'Bank Transfer'): ?>
-                <div class="payment-method-instructions">
-                    <h3>Bank Transfer</h3>
-                    <p>Please transfer the total amount to our bank account:</p>
-                    <div class="bank-details">
-                        <p><strong>Bank Name:</strong> Kenya Commercial Bank</p>
-                        <p><strong>Account Name:</strong> Agriconnect Ltd</p>
-                        <p><strong>Account Number:</strong> 1234567890</p>
-                        <p><strong>Branch:</strong> Nairobi</p>
-                        <p><strong>Reference:</strong> AG<?php echo $orderId; ?></p>
-                        <p><strong>Amount:</strong> KSh <?php echo number_format($order['total_amount'], 2); ?></p>
-                    </div>
-                </div>
-            <?php endif; ?>
-            
-            <div class="payment-note">
-                <p><i class="fas fa-info-circle"></i> Your order will be processed once payment is confirmed.</p>
-            </div>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 15px; border-top: 2px solid #eee; font-size: 1.2rem; font-weight: 700; color: #4CAF50;">
+            <span>Total Paid</span>
+            <span><?php echo formatPrice($order['total_amount']); ?></span>
         </div>
-        
-        <div class="confirmation-actions">
-            <a href="marketplace.php" class="btn btn-secondary">
-                <i class="fas fa-shopping-basket"></i> Continue Shopping
-            </a>
-            <a href="#" class="btn btn-primary print-order">
-                <i class="fas fa-print"></i> Print Order
-            </a>
+
+        <div style="margin-top: 40px; display: flex; gap: 15px; justify-content: center;">
+            <a href="marketplace.php" class="btn btn-primary" style="padding: 12px 25px;">Continue Shopping</a>
+            <a href="consumer/orders.php" class="btn btn-outline" style="padding: 12px 25px;">View My Orders</a>
         </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const printBtn = document.querySelector('.print-order');
-        if (printBtn) {
-            printBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                window.print();
-            });
-        }
-    });
-</script>
 
 <?php include 'includes/footer.php'; ?>

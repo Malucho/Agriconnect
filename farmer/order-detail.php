@@ -11,6 +11,8 @@ if (!isLoggedIn() || $_SESSION['user_type'] != 'farmer') {
 }
 
 $farmerId = $_SESSION['user_id'];
+$farmerName = $_SESSION['first_name'] . ' ' . $_SESSION['last_name'];
+$unreadMessages = getUnreadMessagesCount($farmerId);
 
 // Check if order ID is provided
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
@@ -22,15 +24,11 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $orderId = $_GET['id'];
 
 // Get order details
-$query = "SELECT o.*, u.username as customer_name, u.email as customer_email,
-          o.shipping_address, o.shipping_city, o.shipping_phone, o.payment_method,
-          o.created_at, o.total_amount, o.delivery_fee, o.notes
+$query = "SELECT o.*, u.first_name, u.last_name, u.email as customer_email, u.phone as customer_phone
           FROM orders o
-          JOIN users u ON o.user_id = u.id
+          JOIN users u ON o.consumer_id = u.id
           WHERE o.id = ? AND o.id IN (
-              SELECT DISTINCT oi.order_id FROM order_items oi
-              JOIN products p ON oi.product_id = p.id
-              WHERE p.user_id = ?
+              SELECT DISTINCT order_id FROM order_items WHERE farmer_id = ?
           )";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("ii", $orderId, $farmerId);
@@ -46,32 +44,29 @@ if ($result->num_rows == 0) {
 $order = $result->fetch_assoc();
 
 // Get order items that belong to this farmer
-$query = "SELECT oi.*, p.name as product_name, p.price, p.unit,
-          (SELECT image_url FROM product_images WHERE product_id = p.id LIMIT 1) as image_url
+$query = "SELECT oi.*, p.name as product_name, p.image, p.unit
           FROM order_items oi
           JOIN products p ON oi.product_id = p.id
-          WHERE oi.order_id = ? AND p.user_id = ?";
+          WHERE oi.order_id = ? AND oi.farmer_id = ?";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("ii", $orderId, $farmerId);
 $stmt->execute();
 $result = $stmt->get_result();
 $orderItems = [];
-$subtotal = 0;
+$farmer_subtotal = 0;
 
 while ($row = $result->fetch_assoc()) {
     $orderItems[] = $row;
-    $subtotal += $row['price'] * $row['quantity'];
+    $farmer_subtotal += $row['subtotal'];
 }
 
 // Handle status update for individual items
 if (isset($_POST['update_item_status']) && isset($_POST['item_id']) && isset($_POST['status'])) {
     $itemId = intval($_POST['item_id']);
-    $newStatus = sanitizeInput($_POST['status']);
+    $newStatus = sanitize($_POST['status']);
     
-    // Verify the item belongs to this farmer's product
-    $query = "SELECT oi.id FROM order_items oi 
-              JOIN products p ON oi.product_id = p.id 
-              WHERE oi.id = ? AND p.user_id = ?";
+    // Verify the item belongs to this farmer
+    $query = "SELECT id FROM order_items WHERE id = ? AND farmer_id = ?";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("ii", $itemId, $farmerId);
     $stmt->execute();
@@ -90,6 +85,8 @@ if (isset($_POST['update_item_status']) && isset($_POST['item_id']) && isset($_P
     }
 }
 
+$page_title = 'Order #' . $orderId . ' Details';
+include '../includes/head.php';
 include '../includes/header.php';
 ?>
 
@@ -99,7 +96,7 @@ include '../includes/header.php';
             <div class="farmer-avatar">
                 <i class="fas fa-user-circle"></i>
             </div>
-            <h3><?php echo htmlspecialchars($_SESSION['username']); ?></h3>
+            <h3><?php echo htmlspecialchars($farmerName); ?></h3>
             <p>Farmer</p>
         </div>
         <nav class="dashboard-nav">
@@ -108,7 +105,11 @@ include '../includes/header.php';
                 <li><a href="products.php"><i class="fas fa-leaf"></i> My Products</a></li>
                 <li class="active"><a href="orders.php"><i class="fas fa-shopping-basket"></i> Orders</a></li>
                 <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
-                <li><a href="messages.php"><i class="fas fa-envelope"></i> Messages</a></li>
+                <li><a href="messages.php"><i class="fas fa-envelope"></i> Messages
+                    <?php if ($unreadMessages > 0): ?>
+                        <span class="badge"><?php echo $unreadMessages; ?></span>
+                    <?php endif; ?>
+                </a></li>
             </ul>
         </nav>
     </div>
@@ -128,19 +129,27 @@ include '../includes/header.php';
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-label">Order Date:</span>
-                            <span class="info-value"><?php echo date('F d, Y h:i A', strtotime($order['created_at'])); ?></span>
+                            <span class="info-value"><?php echo date('F d, Y h:i A', strtotime($order['order_date'])); ?></span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Customer:</span>
-                            <span class="info-value"><?php echo htmlspecialchars($order['customer_name']); ?></span>
+                            <span class="info-value"><?php echo htmlspecialchars($order['first_name'] . ' ' . $order['last_name']); ?></span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Email:</span>
                             <span class="info-value"><?php echo htmlspecialchars($order['customer_email']); ?></span>
                         </div>
                         <div class="info-item">
+                            <span class="info-label">Phone:</span>
+                            <span class="info-value"><?php echo htmlspecialchars($order['customer_phone']); ?></span>
+                        </div>
+                        <div class="info-item">
                             <span class="info-label">Payment Method:</span>
-                            <span class="info-value"><?php echo htmlspecialchars($order['payment_method']); ?></span>
+                            <span class="info-value"><?php echo str_replace('_', ' ', ucfirst($order['payment_method'])); ?></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Payment Status:</span>
+                            <span class="info-value"><?php echo ucfirst($order['payment_status']); ?></span>
                         </div>
                     </div>
                 </div>
@@ -148,22 +157,14 @@ include '../includes/header.php';
                 <div class="order-info-card">
                     <h2>Shipping Information</h2>
                     <div class="info-grid">
-                        <div class="info-item">
+                        <div class="info-item full-width">
                             <span class="info-label">Address:</span>
-                            <span class="info-value"><?php echo htmlspecialchars($order['shipping_address']); ?></span>
+                            <span class="info-value"><?php echo nl2br(htmlspecialchars($order['delivery_address'])); ?></span>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">City:</span>
-                            <span class="info-value"><?php echo htmlspecialchars($order['shipping_city']); ?></span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Phone:</span>
-                            <span class="info-value"><?php echo htmlspecialchars($order['shipping_phone']); ?></span>
-                        </div>
-                        <?php if (!empty($order['notes'])): ?>
+                        <?php if (!empty($order['delivery_notes'])): ?>
                             <div class="info-item full-width">
-                                <span class="info-label">Notes:</span>
-                                <span class="info-value"><?php echo htmlspecialchars($order['notes']); ?></span>
+                                <span class="info-label">Delivery Notes:</span>
+                                <span class="info-value"><?php echo htmlspecialchars($order['delivery_notes']); ?></span>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -171,15 +172,15 @@ include '../includes/header.php';
             </div>
             
             <div class="order-items-section">
-                <h2>Order Items</h2>
+                <h2>My Items in this Order</h2>
                 <div class="table-responsive">
-                    <table class="dashboard-table items-table">
+                    <table class="dashboard-table">
                         <thead>
                             <tr>
                                 <th>Product</th>
                                 <th>Price</th>
                                 <th>Quantity</th>
-                                <th>Total</th>
+                                <th>Subtotal</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -188,151 +189,104 @@ include '../includes/header.php';
                             <?php foreach ($orderItems as $item): ?>
                                 <tr>
                                     <td class="product-cell">
-                                        <div class="product-info">
-                                            <?php if ($item['image_url']): ?>
-                                                <img src="<?php echo '../' . htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['product_name']); ?>">
+                                        <div class="product-info" style="display: flex; align-items: center; gap: 10px;">
+                                            <?php if ($item['image']): ?>
+                                                <img src="<?php echo '../uploads/products/' . htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['product_name']); ?>" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
                                             <?php else: ?>
-                                                <div class="no-image"><i class="fas fa-image"></i></div>
+                                                <div class="no-image" style="width: 50px; height: 50px; background: #eee; display: flex; align-items: center; justify-content: center; border-radius: 4px;"><i class="fas fa-image"></i></div>
                                             <?php endif; ?>
                                             <div>
-                                                <h4><?php echo htmlspecialchars($item['product_name']); ?></h4>
+                                                <h4 style="margin: 0;"><?php echo htmlspecialchars($item['product_name']); ?></h4>
                                             </div>
                                         </div>
                                     </td>
-                                    <td>KSh <?php echo number_format($item['price'], 2); ?> / <?php echo htmlspecialchars($item['unit']); ?></td>
+                                    <td>KSh <?php echo number_format($item['unit_price'], 2); ?> / <?php echo htmlspecialchars($item['unit'] ?? 'kg'); ?></td>
                                     <td><?php echo $item['quantity']; ?></td>
-                                    <td>KSh <?php echo number_format($item['price'] * $item['quantity'], 2); ?></td>
+                                    <td>KSh <?php echo number_format($item['subtotal'], 2); ?></td>
                                     <td>
                                         <span class="status-badge status-<?php echo strtolower($item['status']); ?>">
-                                            <?php echo $item['status']; ?>
+                                            <?php echo ucfirst($item['status']); ?>
                                         </span>
                                     </td>
                                     <td>
                                         <button type="button" class="btn-small btn-update" 
-                                                data-item-id="<?php echo $item['id']; ?>" 
-                                                data-status="<?php echo $item['status']; ?>">
-                                            Update Status
+                                                onclick="openItemStatusModal(<?php echo $item['id']; ?>, '<?php echo $item['status']; ?>')">
+                                            Update
                                         </button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="text-align: right; font-weight: bold;">My Total:</td>
+                                <td colspan="3" style="font-weight: bold;">KSh <?php echo number_format($farmer_subtotal, 2); ?></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
             
-            <div class="order-summary-section">
-                <div class="order-summary-card">
-                    <h2>Order Summary</h2>
-                    <div class="summary-items">
-                        <div class="summary-item">
-                            <span>Subtotal:</span>
-                            <span>KSh <?php echo number_format($subtotal, 2); ?></span>
-                        </div>
-                        <div class="summary-item">
-                            <span>Delivery Fee:</span>
-                            <span>KSh <?php echo number_format($order['delivery_fee'], 2); ?></span>
-                        </div>
-                        <div class="summary-item total">
-                            <span>Total:</span>
-                            <span>KSh <?php echo number_format($order['total_amount'], 2); ?></span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="order-actions">
-                    <a href="messages.php?new=<?php echo $order['user_id']; ?>" class="btn btn-secondary">
-                        <i class="fas fa-envelope"></i> Message Customer
-                    </a>
-                    <a href="#" class="btn btn-primary print-order">
-                        <i class="fas fa-print"></i> Print Order
-                    </a>
-                </div>
+            <div class="order-actions" style="margin-top: 20px; display: flex; gap: 10px;">
+                <a href="messages.php?new=<?php echo $order['consumer_id']; ?>" class="btn btn-secondary">
+                    <i class="fas fa-envelope"></i> Message Customer
+                </a>
+                <button onclick="window.print()" class="btn btn-outline">
+                    <i class="fas fa-print"></i> Print Order
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Status Update Modal -->
-<div id="statusModal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Update Item Status</h2>
+<!-- Item Status Update Modal -->
+<div id="itemStatusModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-content" style="background-color: #fff; margin: 15% auto; padding: 20px; border-radius: 8px; width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">Update Item Status</h2>
+            <span onclick="closeItemStatusModal()" style="cursor: pointer; font-size: 24px;">&times;</span>
+        </div>
         <form action="" method="POST">
             <input type="hidden" name="item_id" id="modal-item-id">
             
-            <div class="form-group">
-                <label for="status">New Status:</label>
-                <select name="status" id="modal-status" required>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="status" style="display: block; margin-bottom: 8px;">New Status:</label>
+                <select name="status" id="modal-item-status" required class="form-control" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                     <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
                     <option value="processing">Processing</option>
-                    <option value="shipped">Shipped</option>
-                    <option value="delivered">Delivered</option>
+                    <option value="ready">Ready for Pickup</option>
+                    <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
                 </select>
             </div>
             
-            <div class="form-actions">
+            <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="closeItemStatusModal()" class="btn btn-outline">Cancel</button>
                 <button type="submit" name="update_item_status" class="btn btn-primary">Update Status</button>
-                <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    // Modal functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const modal = document.getElementById('statusModal');
-        const modalItemId = document.getElementById('modal-item-id');
-        const modalStatus = document.getElementById('modal-status');
-        const updateButtons = document.querySelectorAll('.btn-update');
-        const closeBtn = document.querySelector('.close');
-        const cancelBtn = document.querySelector('.modal-cancel');
-        
-        // Open modal when update button is clicked
-        updateButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const itemId = this.getAttribute('data-item-id');
-                const status = this.getAttribute('data-status');
-                
-                modalItemId.value = itemId;
-                modalStatus.value = status;
-                
-                modal.style.display = 'block';
-            });
-        });
-        
-        // Close modal when X is clicked
-        if (closeBtn) {
-            closeBtn.addEventListener('click', function() {
-                modal.style.display = 'none';
-            });
-        }
-        
-        // Close modal when Cancel is clicked
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', function() {
-                modal.style.display = 'none';
-            });
-        }
-        
-        // Close modal when clicking outside
-        window.addEventListener('click', function(event) {
-            if (event.target == modal) {
-                modal.style.display = 'none';
-            }
-        });
-        
-        // Print functionality
-        const printBtn = document.querySelector('.print-order');
-        if (printBtn) {
-            printBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                window.print();
-            });
-        }
-    });
+function openItemStatusModal(itemId, currentStatus) {
+    document.getElementById('modal-item-id').value = itemId;
+    document.getElementById('modal-item-status').value = currentStatus;
+    document.getElementById('itemStatusModal').style.display = 'block';
+}
+
+function closeItemStatusModal() {
+    document.getElementById('itemStatusModal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    var modal = document.getElementById('itemStatusModal');
+    if (event.target == modal) {
+        closeItemStatusModal();
+    }
+}
 </script>
 
 <?php include '../includes/footer.php'; ?>

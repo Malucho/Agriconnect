@@ -36,7 +36,7 @@ if (!empty($search_term)) {
 }
 
 // Only show active products
-$conditions[] = "p.status = 'active'";
+$conditions[] = "p.status = 'available'";
 
 // Build the WHERE clause
 $where_clause = !empty($conditions) ? "WHERE " . implode(' AND ', $conditions) : '';
@@ -56,11 +56,11 @@ switch ($sort_by) {
         $order_by = "ORDER BY p.name DESC";
         break;
     case 'oldest':
-        $order_by = "ORDER BY p.created_at ASC";
+        $order_by = "ORDER BY p.date_added ASC";
         break;
     case 'newest':
     default:
-        $order_by = "ORDER BY p.created_at DESC";
+        $order_by = "ORDER BY p.date_added DESC";
         break;
 }
 
@@ -85,7 +85,6 @@ $total_pages = ceil($total_products / $limit);
 
 // Get products
 $sql = "SELECT p.*, c.name as category_name, u.first_name, u.last_name, 
-        (SELECT image_url FROM product_images WHERE product_id = p.id LIMIT 1) as image_url,
         (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating,
         (SELECT COUNT(*) FROM reviews WHERE product_id = p.id) as review_count
         FROM products p
@@ -111,19 +110,10 @@ for($i = 0; $i < count($params); $i++) {
 call_user_func_array(array($stmt, 'bind_param'), $ref_params);
 $stmt->execute();
 $products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$page_title = 'Marketplace';
+include_once 'includes/head.php';
+include_once 'includes/header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Marketplace - Agriconnect</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-</head>
-<body>
-    <?php include_once 'includes/header.php'; ?>
     
     <main>
         <section class="marketplace-header">
@@ -182,8 +172,8 @@ $products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                         <?php foreach ($products as $product): ?>
                             <div class="product-card">
                                 <div class="product-image">
-                                    <?php if (!empty($product['image_url'])): ?>
-                                        <img src="<?php echo htmlspecialchars($product['image_url']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                                    <?php if (!empty($product['image'])): ?>
+                                        <img src="uploads/products/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
                                     <?php else: ?>
                                         <img src="assets/images/product-placeholder.jpg" alt="No image available">
                                     <?php endif; ?>
@@ -213,7 +203,7 @@ $products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                     </div>
                                     <div class="product-actions">
                                         <a href="product.php?id=<?php echo $product['id']; ?>" class="btn btn-outline">View Details</a>
-                                        <?php if ($product['stock_quantity'] > 0): ?>
+                                        <?php if ($product['quantity_available'] > 0): ?>
                                             <button class="btn btn-primary add-to-cart" data-product-id="<?php echo $product['id']; ?>">
                                                 <i class="fas fa-shopping-cart"></i> Add to Cart
                                             </button>
@@ -229,7 +219,7 @@ $products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     <!-- Pagination -->
                     <?php if ($total_pages > 1): ?>
                         <div class="pagination">
-                            <?php echo generatePaginationLinks($page, $total_pages, "marketplace.php?category=$category_id&search=" . urlencode($search_term) . "&sort=$sort_by"); ?>
+                            <?php echo getPaginationLinks($page, $total_pages, "marketplace.php?category=$category_id&search=" . urlencode($search_term) . "&sort=$sort_by&page=%d"); ?>
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -238,43 +228,3 @@ $products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     </main>
     
     <?php include_once 'includes/footer.php'; ?>
-    
-    <script src="assets/js/main.js"></script>
-    <script>
-        // Add to cart functionality
-        document.querySelectorAll('.add-to-cart').forEach(button => {
-            button.addEventListener('click', function() {
-                const productId = this.getAttribute('data-product-id');
-                
-                // Send AJAX request to add item to cart
-                fetch('ajax/add_to_cart.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `product_id=${productId}&quantity=1`
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Update cart count in header
-                        const cartCount = document.querySelector('.cart-count');
-                        if (cartCount) {
-                            cartCount.textContent = data.cart_count;
-                        }
-                        
-                        // Show success message
-                        alert('Product added to cart!');
-                    } else {
-                        alert(data.message || 'Failed to add product to cart');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred. Please try again.');
-                });
-            });
-        });
-    </script>
-</body>
-</html>

@@ -5,20 +5,20 @@ require_once 'includes/functions.php';
 
 // Check if user is logged in and is a consumer
 if (!isLoggedIn()) {
-    setFlashMessage('error', 'You must be logged in to checkout');
+    setFlashMessage('You must be logged in to checkout', 'danger');
     redirect('login.php');
     exit();
 }
 
 if ($_SESSION['user_type'] != 'consumer') {
-    setFlashMessage('error', 'Only consumers can checkout');
+    setFlashMessage('Only consumers can checkout', 'danger');
     redirect('marketplace.php');
     exit();
 }
 
 // Check if cart is empty
 if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
-    setFlashMessage('error', 'Your cart is empty');
+    setFlashMessage('Your cart is empty', 'danger');
     redirect('cart.php');
     exit();
 }
@@ -39,10 +39,9 @@ $farmerGroups = [];
 
 foreach ($_SESSION['cart'] as $productId => $quantity) {
     $query = "SELECT p.*, 
-              (SELECT image_url FROM product_images WHERE product_id = p.id LIMIT 1) as image_url,
-              u.username as farmer_name, u.id as farmer_id
+              u.first_name as farmer_first_name, u.last_name as farmer_last_name, u.id as farmer_id
               FROM products p
-              JOIN users u ON p.user_id = u.id
+              JOIN users u ON p.farmer_id = u.id
               WHERE p.id = ?";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("i", $productId);
@@ -57,7 +56,7 @@ foreach ($_SESSION['cart'] as $productId => $quantity) {
         // Group by farmer
         if (!isset($farmerGroups[$product['farmer_id']])) {
             $farmerGroups[$product['farmer_id']] = [
-                'farmer_name' => $product['farmer_name'],
+                'farmer_name' => $product['farmer_first_name'] . ' ' . $product['farmer_last_name'],
                 'items' => []
             ];
         }
@@ -68,13 +67,17 @@ foreach ($_SESSION['cart'] as $productId => $quantity) {
 
 // Process checkout form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['place_order'])) {
-    $shippingAddress = sanitizeInput($_POST['shipping_address']);
-    $shippingCity = sanitizeInput($_POST['shipping_city']);
-    $shippingPhone = sanitizeInput($_POST['shipping_phone']);
-    $paymentMethod = sanitizeInput($_POST['payment_method']);
-    $deliveryMethod = sanitizeInput($_POST['delivery_method']);
-    $notes = sanitizeInput($_POST['notes']);
+    $shippingAddress = sanitize($_POST['shipping_address']);
+    $shippingCity = sanitize($_POST['shipping_city']);
+    $shippingPhone = sanitize($_POST['shipping_phone']);
+    $paymentMethod = sanitize($_POST['payment_method']);
+    $notes = sanitize($_POST['notes']);
     
+    // Map payment method to DB enum
+    $db_payment_method = 'cash_on_delivery';
+    if ($paymentMethod == 'M-Pesa') $db_payment_method = 'mpesa';
+    if ($paymentMethod == 'Bank Transfer') $db_payment_method = 'bank_transfer';
+
     // Validate inputs
     $errors = [];
     
@@ -90,30 +93,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['place_order'])) {
         $errors[] = "Phone number is required";
     }
     
-    if (empty($paymentMethod)) {
-        $errors[] = "Payment method is required";
-    }
-    
-    if (empty($deliveryMethod)) {
-        $errors[] = "Delivery method is required";
-    }
-    
-    // Calculate delivery fee based on method
-    $deliveryFee = ($deliveryMethod == 'standard') ? 200 : 500;
-    $orderTotal = $totalAmount + $deliveryFee;
-    
     // If no errors, create order
     if (empty($errors)) {
         $conn->begin_transaction();
         
         try {
+            $full_address = $shippingAddress . ", " . $shippingCity;
+            
             // Create order
-            $query = "INSERT INTO orders (user_id, total_amount, delivery_fee, shipping_address, shipping_city, 
-                      shipping_phone, payment_method, delivery_method, notes, created_at) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $query = "INSERT INTO orders (consumer_id, total_amount, delivery_address, delivery_notes, payment_method, order_date) 
+                      VALUES (?, ?, ?, ?, ?, NOW())";
             $stmt = $conn->prepare($query);
-            $stmt->bind_param("iddssssss", $userId, $orderTotal, $deliveryFee, $shippingAddress, $shippingCity, 
-                             $shippingPhone, $paymentMethod, $deliveryMethod, $notes);
+            $stmt->bind_param("idsss", $userId, $totalAmount, $full_address, $notes, $db_payment_method);
             $stmt->execute();
             
             $orderId = $conn->insert_id;
@@ -129,22 +120,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['place_order'])) {
                 
                 if ($product) {
                     // Check if enough stock
-                    if ($product['stock_quantity'] < $quantity) {
+                    if ($product['quantity_available'] < $quantity) {
                         throw new Exception("Not enough stock for " . $product['name']);
                     }
                     
+                    $subtotal = $product['price'] * $quantity;
+                    
                     // Add order item
-                    $query = "INSERT INTO order_items (order_id, product_id, quantity, price, status) 
-                              VALUES (?, ?, ?, ?, 'pending')";
+                    $query = "INSERT INTO order_items (order_id, product_id, farmer_id, quantity, unit_price, subtotal, status) 
+                              VALUES (?, ?, ?, ?, ?, ?, 'pending')";
                     $stmt = $conn->prepare($query);
-                    $stmt->bind_param("iiid", $orderId, $productId, $quantity, $product['price']);
+                    $stmt->bind_param("iiiddd", $orderId, $productId, $product['farmer_id'], $quantity, $product['price'], $subtotal);
                     $stmt->execute();
                     
                     // Update product stock
-                    $newStock = $product['stock_quantity'] - $quantity;
-                    $query = "UPDATE products SET stock_quantity = ? WHERE id = ?";
+                    $newStock = $product['quantity_available'] - $quantity;
+                    $query = "UPDATE products SET quantity_available = ? WHERE id = ?";
                     $stmt = $conn->prepare($query);
-                    $stmt->bind_param("ii", $newStock, $productId);
+                    $stmt->bind_param("di", $newStock, $productId);
                     $stmt->execute();
                 }
             }
@@ -159,207 +152,143 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['place_order'])) {
             exit();
         } catch (Exception $e) {
             $conn->rollback();
-            setFlashMessage('error', 'Error processing order: ' . $e->getMessage());
+            setFlashMessage('Error processing order: ' . $e->getMessage(), 'danger');
         }
     } else {
         // Set error messages
         foreach ($errors as $error) {
-            setFlashMessage('error', $error);
+            setFlashMessage($error, 'danger');
         }
     }
 }
 
+$page_title = 'Checkout';
+include 'includes/head.php';
 include 'includes/header.php';
 ?>
 
-<div class="checkout-container">
-    <div class="checkout-header">
+<div class="container" style="padding: 40px 15px;">
+    <div class="checkout-header" style="margin-bottom: 30px;">
         <h1>Checkout</h1>
-        <div class="checkout-steps">
-            <div class="step completed">
-                <span class="step-number">1</span>
-                <span class="step-name">Shopping Cart</span>
-            </div>
-            <div class="step active">
-                <span class="step-number">2</span>
-                <span class="step-name">Checkout</span>
-            </div>
-            <div class="step">
-                <span class="step-number">3</span>
-                <span class="step-name">Order Complete</span>
-            </div>
-        </div>
     </div>
     
     <?php displayFlashMessages(); ?>
     
-    <div class="checkout-content">
+    <div class="checkout-content" style="display: grid; grid-template-columns: 1fr 400px; gap: 30px;">
         <div class="checkout-form-container">
             <form action="" method="POST" id="checkout-form">
-                <div class="form-section">
-                    <h2>Shipping Information</h2>
-                    <div class="form-grid">
+                <div class="form-section" style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px;">
+                    <h2 style="margin-bottom: 20px; font-size: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Shipping Information</h2>
+                    <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div class="form-group">
-                            <label for="shipping_name">Full Name</label>
-                            <input type="text" id="shipping_name" value="<?php echo htmlspecialchars($user['username']); ?>" readonly>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Full Name</label>
+                            <input type="text" value="<?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>" readonly style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
                         </div>
                         
                         <div class="form-group">
-                            <label for="shipping_email">Email</label>
-                            <input type="email" id="shipping_email" value="<?php echo htmlspecialchars($user['email']); ?>" readonly>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Email</label>
+                            <input type="email" value="<?php echo htmlspecialchars($user['email']); ?>" readonly style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                        </div>
+                        
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label for="shipping_address" style="display: block; margin-bottom: 8px; font-weight: 600;">Address *</label>
+                            <input type="text" id="shipping_address" name="shipping_address" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                         </div>
                         
                         <div class="form-group">
-                            <label for="shipping_address">Address *</label>
-                            <input type="text" id="shipping_address" name="shipping_address" required>
+                            <label for="shipping_city" style="display: block; margin-bottom: 8px; font-weight: 600;">City/Town *</label>
+                            <input type="text" id="shipping_city" name="shipping_city" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                         </div>
                         
                         <div class="form-group">
-                            <label for="shipping_city">City/Town *</label>
-                            <input type="text" id="shipping_city" name="shipping_city" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="shipping_phone">Phone Number *</label>
-                            <input type="text" id="shipping_phone" name="shipping_phone" value="<?php echo htmlspecialchars($user['phone']); ?>" required>
+                            <label for="shipping_phone" style="display: block; margin-bottom: 8px; font-weight: 600;">Phone Number *</label>
+                            <input type="text" id="shipping_phone" name="shipping_phone" value="<?php echo htmlspecialchars($user['phone']); ?>" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                         </div>
                     </div>
                 </div>
                 
-                <div class="form-section">
-                    <h2>Delivery Method</h2>
-                    <div class="delivery-options">
-                        <div class="delivery-option">
-                            <input type="radio" id="delivery_standard" name="delivery_method" value="standard" checked>
-                            <label for="delivery_standard">
-                                <div class="option-info">
-                                    <h3>Standard Delivery</h3>
-                                    <p>3-5 business days</p>
-                                </div>
-                                <div class="option-price">KSh 200</div>
-                            </label>
-                        </div>
+                <div class="form-section" style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px;">
+                    <h2 style="margin-bottom: 20px; font-size: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Payment Method</h2>
+                    <div class="payment-options" style="display: flex; flex-direction: column; gap: 15px;">
+                        <label class="payment-option" style="display: flex; align-items: center; gap: 15px; padding: 15px; border: 1px solid #eee; border-radius: 8px; cursor: pointer;">
+                            <input type="radio" name="payment_method" value="M-Pesa" checked>
+                            <div>
+                                <div style="font-weight: 600;">M-Pesa</div>
+                                <div style="font-size: 0.85rem; color: #777;">Pay via mobile money</div>
+                            </div>
+                        </label>
                         
-                        <div class="delivery-option">
-                            <input type="radio" id="delivery_express" name="delivery_method" value="express">
-                            <label for="delivery_express">
-                                <div class="option-info">
-                                    <h3>Express Delivery</h3>
-                                    <p>1-2 business days</p>
-                                </div>
-                                <div class="option-price">KSh 500</div>
-                            </label>
-                        </div>
+                        <label class="payment-option" style="display: flex; align-items: center; gap: 15px; padding: 15px; border: 1px solid #eee; border-radius: 8px; cursor: pointer;">
+                            <input type="radio" name="payment_method" value="Bank Transfer">
+                            <div>
+                                <div style="font-weight: 600;">Bank Transfer</div>
+                                <div style="font-size: 0.85rem; color: #777;">Direct bank transfer</div>
+                            </div>
+                        </label>
+
+                        <label class="payment-option" style="display: flex; align-items: center; gap: 15px; padding: 15px; border: 1px solid #eee; border-radius: 8px; cursor: pointer;">
+                            <input type="radio" name="payment_method" value="Cash on Delivery">
+                            <div>
+                                <div style="font-weight: 600;">Cash on Delivery</div>
+                                <div style="font-size: 0.85rem; color: #777;">Pay when you receive items</div>
+                            </div>
+                        </label>
                     </div>
                 </div>
                 
-                <div class="form-section">
-                    <h2>Payment Method</h2>
-                    <div class="payment-options">
-                        <div class="payment-option">
-                            <input type="radio" id="payment_mpesa" name="payment_method" value="M-Pesa" checked>
-                            <label for="payment_mpesa">
-                                <div class="payment-logo mpesa-logo">M-Pesa</div>
-                                <div class="payment-info">Pay via M-Pesa</div>
-                            </label>
-                        </div>
-                        
-                        <div class="payment-option">
-                            <input type="radio" id="payment_bank" name="payment_method" value="Bank Transfer">
-                            <label for="payment_bank">
-                                <div class="payment-logo bank-logo">Bank</div>
-                                <div class="payment-info">Bank Transfer</div>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-section">
-                    <h2>Additional Information</h2>
+                <div class="form-section" style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h2 style="margin-bottom: 20px; font-size: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Additional Information</h2>
                     <div class="form-group">
-                        <label for="notes">Order Notes (Optional)</label>
-                        <textarea id="notes" name="notes" rows="4" placeholder="Special instructions for delivery or order"></textarea>
+                        <label for="notes" style="display: block; margin-bottom: 8px; font-weight: 600;">Order Notes (Optional)</label>
+                        <textarea id="notes" name="notes" rows="4" placeholder="Special instructions for delivery or order" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
                     </div>
                 </div>
             </form>
         </div>
         
-        <div class="order-summary">
-            <div class="summary-header">
-                <h2>Order Summary</h2>
-            </div>
+        <div class="order-summary" style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); height: fit-content; position: sticky; top: 20px;">
+            <h2 style="margin-bottom: 20px; font-size: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Order Summary</h2>
             
-            <div class="summary-items">
+            <div class="summary-items" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;">
                 <?php foreach ($farmerGroups as $farmerId => $farmerGroup): ?>
-                    <div class="farmer-group">
-                        <h3>From: <?php echo htmlspecialchars($farmerGroup['farmer_name']); ?></h3>
+                    <div class="farmer-group" style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #f9f9f9;">
+                        <h3 style="font-size: 0.9rem; color: #4CAF50; margin-bottom: 10px;">From: <?php echo htmlspecialchars($farmerGroup['farmer_name']); ?></h3>
                         
                         <?php foreach ($farmerGroup['items'] as $item): ?>
-                            <div class="summary-item">
-                                <div class="item-image">
-                                    <?php if ($item['image_url']): ?>
-                                        <img src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>">
+                            <div class="summary-item" style="display: flex; gap: 12px; margin-bottom: 10px;">
+                                <div class="item-image" style="width: 50px; height: 50px; border-radius: 4px; overflow: hidden; background: #eee; flex-shrink: 0;">
+                                    <?php if ($item['image']): ?>
+                                        <img src="uploads/products/<?php echo htmlspecialchars($item['image']); ?>" alt="Product" style="width: 100%; height: 100%; object-fit: cover;">
                                     <?php else: ?>
-                                        <div class="no-image"><i class="fas fa-image"></i></div>
+                                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #ccc;"><i class="fas fa-image"></i></div>
                                     <?php endif; ?>
                                 </div>
-                                <div class="item-details">
-                                    <h4><?php echo htmlspecialchars($item['name']); ?></h4>
-                                    <p>KSh <?php echo number_format($item['price'], 2); ?> x <?php echo $item['quantity']; ?></p>
+                                <div class="item-details" style="flex: 1; min-width: 0;">
+                                    <h4 style="font-size: 0.9rem; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><?php echo htmlspecialchars($item['name']); ?></h4>
+                                    <p style="font-size: 0.8rem; color: #777; margin: 0;"><?php echo $item['quantity']; ?> x <?php echo formatPrice($item['price']); ?></p>
                                 </div>
-                                <div class="item-price">KSh <?php echo number_format($item['subtotal'], 2); ?></div>
+                                <div class="item-price" style="font-weight: 600; font-size: 0.9rem;"><?php echo formatPrice($item['subtotal']); ?></div>
                             </div>
                         <?php endforeach; ?>
                     </div>
                 <?php endforeach; ?>
             </div>
             
-            <div class="summary-totals">
-                <div class="summary-row">
-                    <span>Subtotal</span>
-                    <span>KSh <?php echo number_format($totalAmount, 2); ?></span>
-                </div>
-                <div class="summary-row delivery-fee">
-                    <span>Delivery Fee</span>
-                    <span id="delivery-fee">KSh 200</span>
-                </div>
-                <div class="summary-row total">
+            <div class="summary-totals" style="border-top: 2px solid #eee; padding-top: 15px; margin-bottom: 20px;">
+                <div class="summary-row" style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.1rem; font-weight: 700; color: #4CAF50;">
                     <span>Total</span>
-                    <span id="order-total">KSh <?php echo number_format($totalAmount + 200, 2); ?></span>
+                    <span><?php echo formatPrice($totalAmount); ?></span>
                 </div>
             </div>
             
-            <div class="summary-actions">
-                <button type="submit" form="checkout-form" name="place_order" class="btn btn-primary btn-block">
-                    Place Order
-                </button>
-                <a href="cart.php" class="btn-text">
-                    <i class="fas fa-arrow-left"></i> Return to Cart
-                </a>
-            </div>
+            <button type="submit" form="checkout-form" name="place_order" class="btn btn-primary" style="width: 100%; padding: 15px; font-size: 1.1rem;">
+                Place Order
+            </button>
+            <a href="cart.php" class="btn-text" style="display: block; text-align: center; margin-top: 15px; color: #777; font-size: 0.9rem;">
+                <i class="fas fa-arrow-left"></i> Return to Cart
+            </a>
         </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const standardDelivery = document.getElementById('delivery_standard');
-        const expressDelivery = document.getElementById('delivery_express');
-        const deliveryFeeElement = document.getElementById('delivery-fee');
-        const orderTotalElement = document.getElementById('order-total');
-        const subtotal = <?php echo $totalAmount; ?>;
-        
-        function updateTotals() {
-            let deliveryFee = standardDelivery.checked ? 200 : 500;
-            let total = subtotal + deliveryFee;
-            
-            deliveryFeeElement.textContent = 'KSh ' + deliveryFee.toFixed(2);
-            orderTotalElement.textContent = 'KSh ' + total.toFixed(2);
-        }
-        
-        standardDelivery.addEventListener('change', updateTotals);
-        expressDelivery.addEventListener('change', updateTotals);
-    });
-</script>
 
 <?php include 'includes/footer.php'; ?>

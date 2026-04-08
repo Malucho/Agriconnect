@@ -50,7 +50,7 @@ if ($quantity <= 0) {
 $product = getProductById($product_id);
 
 // Check if product exists and is active
-if (!$product || $product['status'] !== 'active') {
+if (!$product || $product['status'] === 'hidden') {
     echo json_encode([
         'success' => false,
         'message' => 'Product not found or no longer available'
@@ -59,10 +59,10 @@ if (!$product || $product['status'] !== 'active') {
 }
 
 // Check if quantity is available
-if ($quantity > $product['stock_quantity']) {
+if ($quantity > $product['quantity_available']) {
     echo json_encode([
         'success' => false,
-        'message' => 'Not enough stock available. Only ' . $product['stock_quantity'] . ' ' . $product['unit'] . ' available.'
+        'message' => 'Not enough stock available. Only ' . $product['quantity_available'] . ' ' . $product['unit'] . ' available.'
     ]);
     exit;
 }
@@ -77,8 +77,8 @@ if (isset($_SESSION['cart'][$product_id])) {
     $new_quantity = $_SESSION['cart'][$product_id] + $quantity;
     
     // Check if new quantity exceeds available stock
-    if ($new_quantity > $product['stock_quantity']) {
-        $new_quantity = $product['stock_quantity'];
+    if ($new_quantity > $product['quantity_available']) {
+        $new_quantity = $product['quantity_available'];
     }
     
     $_SESSION['cart'][$product_id] = $new_quantity;

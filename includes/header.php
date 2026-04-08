@@ -1,8 +1,8 @@
 <header>
     <div class="container header-container">
         <div class="logo">
-            <a href="index.php">
-                <img src="Images/Green and White Organic Agriculture Logo.png" alt="Agriconnect Logo">
+            <a href="<?php echo SITE_URL; ?>/index.php">
+                <img src="<?php echo SITE_URL; ?>/Images/Green and White Organic Agriculture Logo.png" alt="Agriconnect Logo">
                 <h1>Agriconnect</h1>
             </a>
         </div>
@@ -13,12 +13,12 @@
         
         <nav>
             <ul>
-                <li><a href="index.php">Home</a></li>
-                <li><a href="marketplace.php">Marketplace</a></li>
-                <li><a href="about.php">About Us</a></li>
-                <li><a href="contact.php">Contact</a></li>
+                <li><a href="<?php echo SITE_URL; ?>/index.php">Home</a></li>
+                <li><a href="<?php echo SITE_URL; ?>/marketplace.php">Marketplace</a></li>
+                <li><a href="<?php echo SITE_URL; ?>/about.php">About Us</a></li>
+                <li><a href="<?php echo SITE_URL; ?>/contact.php">Contact</a></li>
                 <?php if (isLoggedIn() && isFarmer()): ?>
-                    <li><a href="farmer/dashboard.php">Farmer Dashboard</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/farmer/dashboard.php">Farmer Dashboard</a></li>
                 <?php endif; ?>
             </ul>
         </nav>
@@ -34,25 +34,25 @@
                     </button>
                     <div class="dropdown-menu">
                         <?php if (isFarmer()): ?>
-                            <a href="farmer/dashboard.php">Dashboard</a>
+                            <a href="<?php echo SITE_URL; ?>/farmer/dashboard.php">Dashboard</a>
                         <?php elseif (isConsumer()): ?>
-                            <a href="consumer/dashboard.php">Dashboard</a>
+                            <a href="<?php echo SITE_URL; ?>/consumer/dashboard.php">Dashboard</a>
                         <?php elseif (isAdmin()): ?>
-                            <a href="admin/dashboard.php">Admin Panel</a>
+                            <a href="<?php echo SITE_URL; ?>/admin/dashboard.php">Admin Panel</a>
                         <?php endif; ?>
-                        <a href="profile.php">My Profile</a>
-                        <a href="messages.php">
+                        <a href="<?php echo SITE_URL; ?>/profile.php"><i class="fas fa-user"></i> My Profile</a>
+                        <a href="<?php echo SITE_URL; ?>/messages.php">
                             Messages
                             <?php if (getUnreadMessagesCount($_SESSION['user_id']) > 0): ?>
                                 <span class="badge"><?php echo getUnreadMessagesCount($_SESSION['user_id']); ?></span>
                             <?php endif; ?>
                         </a>
-                        <a href="logout.php">Logout</a>
+                        <a href="<?php echo SITE_URL; ?>/logout.php">Logout</a>
                     </div>
                 </div>
             <?php else: ?>
-                <a href="login.php" class="btn btn-outline">Login</a>
-                <a href="register.php" class="btn btn-primary">Register</a>
+                <a href="<?php echo SITE_URL; ?>/login.php" class="btn btn-outline">Login</a>
+                <a href="<?php echo SITE_URL; ?>/register.php" class="btn btn-primary">Register</a>
             <?php endif; ?>
         </div>
     </div>

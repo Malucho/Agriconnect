@@ -1,11 +1,15 @@
 <?php
 /**
- * Database Configuration
- * 
- * This file contains the database connection settings for the Agriconnect platform.
+ * Agriconnect Configuration
  */
 
-// Database credentials
+// Error Reporting (Development)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+/**
+ * Database Configuration
+ */
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASS', '');
@@ -57,7 +61,9 @@ try {
 
 // Set application constants
 $base_dir = dirname(__DIR__) . '/';
-define('SITE_URL', (isset($_SERVER['HTTP_HOST']) ? 'http://' . $_SERVER['HTTP_HOST'] : '') . '/Agriconnect');
+$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+$host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+define('SITE_URL', $protocol . '://' . $host . '/Agriconnect');
 define('UPLOAD_DIR', $base_dir . 'uploads/');
 define('PRODUCT_IMG_DIR', UPLOAD_DIR . 'products/');
 define('PROFILE_IMG_DIR', UPLOAD_DIR . 'profiles/');

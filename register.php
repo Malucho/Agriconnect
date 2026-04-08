@@ -140,19 +140,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+$page_title = 'Register';
+include_once 'includes/head.php';
+include_once 'includes/header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Agriconnect</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-</head>
-<body>
-    <?php include_once 'includes/header.php'; ?>
     
     <main>
         <section class="form-section">
@@ -252,9 +243,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </section>
     </main>
     
-    <?php include_once 'includes/footer.php'; ?>
-    
-    <script src="assets/js/main.js"></script>
     <script>
         // Toggle user type selection
         document.querySelectorAll('.toggle-option').forEach(option => {
@@ -265,5 +253,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         });
     </script>
-</body>
-</html>
+    
+    <?php include_once 'includes/footer.php'; ?>

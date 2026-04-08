@@ -11,8 +11,8 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $product_id = (int)$_GET['id'];
 $product = getProductById($product_id);
 
-// If product doesn't exist or is not active, redirect to marketplace
-if (!$product || $product['status'] !== 'active') {
+// If product doesn't exist or is not available, redirect to marketplace
+if (!$product || $product['status'] === 'hidden') {
     setFlashMessage('error', 'Product not found or no longer available.');
     redirect('marketplace.php');
 }
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && i
     // Check if user has purchased this product
     $stmt = $conn->prepare("SELECT oi.id FROM order_items oi 
                            JOIN orders o ON oi.order_id = o.id 
-                           WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'completed'");
+                           WHERE o.consumer_id = ? AND oi.product_id = ? AND o.status = 'completed'");
     $stmt->bind_param("ii", $user_id, $product_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && i
     
     // If no errors, save the review
     if (empty($errors)) {
-        $stmt = $conn->prepare("INSERT INTO reviews (product_id, user_id, rating, comment, created_at) VALUES (?, ?, ?, ?, NOW())");
+        $stmt = $conn->prepare("INSERT INTO reviews (product_id, user_id, rating, comment, review_date) VALUES (?, ?, ?, ?, NOW())");
         $stmt->bind_param("iiis", $product_id, $user_id, $rating, $comment);
         
         if ($stmt->execute()) {
@@ -79,19 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && i
         }
     }
 }
+$page_title = $product['name'];
+include_once 'includes/head.php';
+include_once 'includes/header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($product['name']); ?> - Agriconnect</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-</head>
-<body>
-    <?php include_once 'includes/header.php'; ?>
     
     <main>
         <section class="product-detail">
@@ -105,19 +96,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && i
                 
                 <div class="product-detail-container">
                     <div class="product-gallery">
-                        <?php if (!empty($images)): ?>
+                        <?php if (!empty($product['image'])): ?>
                             <div class="main-image">
-                                <img id="main-product-image" src="<?php echo htmlspecialchars($images[0]['image_url']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                                <img id="main-product-image" src="uploads/products/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
                             </div>
-                            <?php if (count($images) > 1): ?>
-                                <div class="thumbnail-images">
-                                    <?php foreach ($images as $index => $image): ?>
-                                        <div class="thumbnail <?php echo $index === 0 ? 'active' : ''; ?>" onclick="changeMainImage('<?php echo htmlspecialchars($image['image_url']); ?>', this)">
-                                            <img src="<?php echo htmlspecialchars($image['image_url']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?> thumbnail">
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
                         <?php else: ?>
                             <div class="main-image">
                                 <img src="assets/images/product-placeholder.jpg" alt="No image available">
@@ -151,8 +133,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && i
                         </div>
                         
                         <div class="product-availability">
-                            <?php if ($product['stock_quantity'] > 0): ?>
-                                <span class="in-stock">In Stock (<?php echo $product['stock_quantity']; ?> <?php echo htmlspecialchars($product['unit']); ?> available)</span>
+                            <?php if ($product['quantity_available'] > 0): ?>
+                                <span class="in-stock">In Stock (<?php echo $product['quantity_available']; ?> <?php echo htmlspecialchars($product['unit']); ?> available)</span>
                             <?php else: ?>
                                 <span class="out-of-stock">Out of Stock</span>
                             <?php endif; ?>
@@ -163,14 +145,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && i
                             <p><?php echo nl2br(htmlspecialchars($product['description'])); ?></p>
                         </div>
                         
-                        <?php if ($product['stock_quantity'] > 0): ?>
+                        <?php if ($product['quantity_available'] > 0): ?>
                             <form class="add-to-cart-form">
                                 <div class="quantity-selector">
                                     <label for="quantity">Quantity (<?php echo htmlspecialchars($product['unit']); ?>):</label>
                                     <div class="quantity-controls">
                                         <button type="button" class="quantity-btn minus" onclick="decrementQuantity()">-</button>
-                                        <input type="number" id="quantity" name="quantity" value="1" min="1" max="<?php echo $product['stock_quantity']; ?>">
-                                        <button type="button" class="quantity-btn plus" onclick="incrementQuantity(<?php echo $product['stock_quantity']; ?>)">+</button>
+                                        <input type="number" id="quantity" name="quantity" value="1" min="1" max="<?php echo $product['quantity_available']; ?>">
+                                        <button type="button" class="quantity-btn plus" onclick="incrementQuantity(<?php echo $product['quantity_available']; ?>)">+</button>
                                     </div>
                                 </div>
                                 
@@ -185,14 +167,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && i
                             <div class="farmer-profile">
                                 <div class="farmer-image">
                                     <?php if (!empty($farmer['profile_image'])): ?>
-                                        <img src="<?php echo htmlspecialchars($farmer['profile_image']); ?>" alt="<?php echo htmlspecialchars($farmer['first_name'] . ' ' . $farmer['last_name']); ?>">
+                                        <img src="uploads/profiles/<?php echo htmlspecialchars($farmer['profile_image']); ?>" alt="<?php echo htmlspecialchars($farmer['first_name'] . ' ' . $farmer['last_name']); ?>">
                                     <?php else: ?>
                                         <img src="assets/images/farmer-placeholder.jpg" alt="Farmer profile">
                                     <?php endif; ?>
                                 </div>
                                 <div class="farmer-details">
                                     <h4><?php echo htmlspecialchars($farmer['first_name'] . ' ' . $farmer['last_name']); ?></h4>
-                                    <p class="farmer-location"><?php echo htmlspecialchars($farmer['county'] . ', ' . $farmer['sub_county']); ?></p>
+                                    <p class="farmer-location"><?php echo htmlspecialchars($farmer['county'] . ', ' . $farmer['location']); ?></p>
                                     <a href="farmer-profile.php?id=<?php echo $farmer['id']; ?>" class="btn btn-outline">View Profile</a>
                                 </div>
                             </div>
@@ -259,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && i
                                         <div class="review-header">
                                             <div class="reviewer-info">
                                                 <h4><?php echo htmlspecialchars($review['first_name'] . ' ' . $review['last_name']); ?></h4>
-                                                <span class="review-date"><?php echo date('F j, Y', strtotime($review['created_at'])); ?></span>
+                                                <span class="review-date"><?php echo date('F j, Y', strtotime($review['review_date'])); ?></span>
                                             </div>
                                             <div class="review-rating">
                                                 <?php 
@@ -327,111 +309,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review']) && i
     </main>
     
     <?php include_once 'includes/footer.php'; ?>
-    
-    <script src="assets/js/main.js"></script>
-    <script>
-        // Change main product image
-        function changeMainImage(imageUrl, thumbnail) {
-            document.getElementById('main-product-image').src = imageUrl;
-            
-            // Update active thumbnail
-            document.querySelectorAll('.thumbnail').forEach(thumb => {
-                thumb.classList.remove('active');
-            });
-            thumbnail.classList.add('active');
-        }
-        
-        // Quantity controls
-        function incrementQuantity(max) {
-            const quantityInput = document.getElementById('quantity');
-            const currentValue = parseInt(quantityInput.value);
-            if (currentValue < max) {
-                quantityInput.value = currentValue + 1;
-            }
-        }
-        
-        function decrementQuantity() {
-            const quantityInput = document.getElementById('quantity');
-            const currentValue = parseInt(quantityInput.value);
-            if (currentValue > 1) {
-                quantityInput.value = currentValue - 1;
-            }
-        }
-        
-        // Tab switching
-        document.querySelectorAll('.tab-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                // Remove active class from all buttons and content
-                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-                
-                // Add active class to clicked button and corresponding content
-                this.classList.add('active');
-                document.getElementById(this.getAttribute('data-tab')).classList.add('active');
-            });
-        });
-        
-        // Star rating
-        document.querySelectorAll('.star-rating input').forEach(input => {
-            input.addEventListener('change', function() {
-                const rating = this.value;
-                const stars = document.querySelectorAll('.star-rating label i');
-                
-                stars.forEach((star, index) => {
-                    if (index < rating) {
-                        star.className = 'fas fa-star';
-                    } else {
-                        star.className = 'far fa-star';
-                    }
-                });
-            });
-        });
-        
-        // Add to cart
-        document.querySelector('.add-to-cart-btn').addEventListener('click', function() {
-            const productId = this.getAttribute('data-product-id');
-            const quantity = document.getElementById('quantity').value;
-            
-            // Send AJAX request to add item to cart
-            fetch('ajax/add_to_cart.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `product_id=${productId}&quantity=${quantity}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update cart count in header
-                    const cartCount = document.querySelector('.cart-count');
-                    if (cartCount) {
-                        cartCount.textContent = data.cart_count;
-                    }
-                    
-                    // Show success message
-                    alert('Product added to cart!');
-                } else {
-                    alert(data.message || 'Failed to add product to cart');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-            });
-        });
-        
-        // Load related products
-        document.addEventListener('DOMContentLoaded', function() {
-            fetch(`ajax/related_products.php?product_id=<?php echo $product_id; ?>&category_id=<?php echo $product['category_id']; ?>`)
-            .then(response => response.text())
-            .then(data => {
-                document.querySelector('.products-slider').innerHTML = data;
-            })
-            .catch(error => {
-                console.error('Error loading related products:', error);
-            });
-        });
-    </script>
-</body>
-</html>

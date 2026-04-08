@@ -24,16 +24,13 @@ while ($row = $result->fetch_assoc()) {
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Validate inputs
-    $name = sanitizeInput($_POST['name']);
-    $description = sanitizeInput($_POST['description']);
+    $name = sanitize($_POST['name']);
+    $description = sanitize($_POST['description']);
     $price = floatval($_POST['price']);
-    $stock = intval($_POST['stock_quantity']);
+    $quantity = intval($_POST['quantity_available']);
     $categoryId = intval($_POST['category_id']);
-    $unit = sanitizeInput($_POST['unit']);
-    $origin = sanitizeInput($_POST['origin']);
-    $isOrganic = isset($_POST['is_organic']) ? 1 : 0;
-    $harvestDate = sanitizeInput($_POST['harvest_date']);
-    $isActive = isset($_POST['is_active']) ? 1 : 0;
+    $unit = sanitize($_POST['unit']);
+    $status = sanitize($_POST['status']);
     
     // Validation
     if (empty($name)) {
@@ -48,8 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $errors[] = "Price must be greater than zero";
     }
     
-    if ($stock < 0) {
-        $errors[] = "Stock quantity cannot be negative";
+    if ($quantity < 0) {
+        $errors[] = "Quantity cannot be negative";
     }
     
     if ($categoryId <= 0) {
@@ -61,56 +58,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $conn->begin_transaction();
         
         try {
-            // Insert product
-            $query = "INSERT INTO products (name, description, price, stock_quantity, category_id, user_id, unit, origin, is_organic, harvest_date, is_active, created_at) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-            $stmt = $conn->prepare($query);
-            $stmt->bind_param("ssdiisssiis", $name, $description, $price, $stock, $categoryId, $farmerId, $unit, $origin, $isOrganic, $harvestDate, $isActive);
-            $stmt->execute();
+            $imageFilename = '';
             
-            $productId = $conn->insert_id;
-            
-            // Handle image uploads
-            if (!empty($_FILES['images']['name'][0])) {
+            // Handle single image upload
+            if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
                 $uploadDir = '../uploads/products/';
+                $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+                $filename = $_FILES['image']['name'];
+                $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
                 
-                // Create directory if it doesn't exist
-                if (!file_exists($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
-                }
-                
-                foreach ($_FILES['images']['tmp_name'] as $key => $tmp_name) {
-                    if ($_FILES['images']['error'][$key] == 0) {
-                        $fileName = time() . '_' . $_FILES['images']['name'][$key];
-                        $filePath = $uploadDir . $fileName;
-                        
-                        // Move uploaded file
-                        if (move_uploaded_file($tmp_name, $filePath)) {
-                            // Insert image record
-                            $imageUrl = 'uploads/products/' . $fileName;
-                            $query = "INSERT INTO product_images (product_id, image_url, created_at) VALUES (?, ?, NOW())";
-                            $stmt = $conn->prepare($query);
-                            $stmt->bind_param("is", $productId, $imageUrl);
-                            $stmt->execute();
-                        } else {
-                            throw new Exception("Failed to upload image");
-                        }
+                if (in_array($ext, $allowed)) {
+                    $imageFilename = 'prod_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
+                    $uploadPath = $uploadDir . $imageFilename;
+                    
+                    if (!move_uploaded_file($_FILES['image']['tmp_name'], $uploadPath)) {
+                        throw new Exception("Failed to upload image");
                     }
                 }
             }
+
+            // Insert product
+            $query = "INSERT INTO products (name, description, price, unit, quantity_available, category_id, farmer_id, image, status, date_added) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("ssdsiiiss", $name, $description, $price, $unit, $quantity, $categoryId, $farmerId, $imageFilename, $status);
+            $stmt->execute();
             
             $conn->commit();
             setFlashMessage('success', 'Product added successfully');
             redirect('products.php');
             exit();
-            
         } catch (Exception $e) {
             $conn->rollback();
-            $errors[] = "Error: " . $e->getMessage();
+            $errors[] = "Error adding product: " . $e->getMessage();
         }
     }
 }
 
+$page_title = 'Add New Product';
+include '../includes/head.php';
 include '../includes/header.php';
 ?>
 
@@ -120,7 +106,7 @@ include '../includes/header.php';
             <div class="farmer-avatar">
                 <i class="fas fa-user-circle"></i>
             </div>
-            <h3><?php echo htmlspecialchars($_SESSION['username']); ?></h3>
+            <h3><?php echo htmlspecialchars(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')); ?></h3>
             <p>Farmer</p>
         </div>
         <nav class="dashboard-nav">
@@ -192,8 +178,8 @@ include '../includes/header.php';
                     </div>
                     
                     <div class="form-group">
-                        <label for="stock_quantity">Stock Quantity <span class="required">*</span></label>
-                        <input type="number" id="stock_quantity" name="stock_quantity" min="0" required value="<?php echo isset($_POST['stock_quantity']) ? htmlspecialchars($_POST['stock_quantity']) : ''; ?>">
+                        <label for="quantity_available">Quantity Available <span class="required">*</span></label>
+                        <input type="number" id="quantity_available" name="quantity_available" min="0" required value="<?php echo isset($_POST['quantity_available']) ? htmlspecialchars($_POST['quantity_available']) : ''; ?>">
                     </div>
                 </div>
                 
@@ -205,33 +191,15 @@ include '../includes/header.php';
                         <textarea id="description" name="description" rows="5" required><?php echo isset($_POST['description']) ? htmlspecialchars($_POST['description']) : ''; ?></textarea>
                         <p class="form-hint">Describe your product in detail. Include information about quality, taste, and usage suggestions.</p>
                     </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="origin">Origin Location</label>
-                            <input type="text" id="origin" name="origin" value="<?php echo isset($_POST['origin']) ? htmlspecialchars($_POST['origin']) : ''; ?>">
-                            <p class="form-hint">Where was this product grown? (e.g., Nakuru, Kiambu)</p>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="harvest_date">Harvest Date</label>
-                            <input type="date" id="harvest_date" name="harvest_date" value="<?php echo isset($_POST['harvest_date']) ? htmlspecialchars($_POST['harvest_date']) : ''; ?>">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group checkbox-group">
-                        <input type="checkbox" id="is_organic" name="is_organic" <?php echo (isset($_POST['is_organic'])) ? 'checked' : ''; ?>>
-                        <label for="is_organic">This product is organically grown</label>
-                    </div>
                 </div>
                 
                 <div class="form-section">
-                    <h2>Product Images</h2>
+                    <h2>Product Image</h2>
                     
                     <div class="form-group">
-                        <label for="images">Upload Images (Max 5)</label>
-                        <input type="file" id="images" name="images[]" accept="image/*" multiple>
-                        <p class="form-hint">Upload clear, high-quality images of your product. First image will be the main product image.</p>
+                        <label for="image">Upload Product Image</label>
+                        <input type="file" id="image" name="image" accept="image/*">
+                        <p class="form-hint">Upload a clear, high-quality image of your product.</p>
                     </div>
                     
                     <div id="image-preview" class="image-preview-container"></div>
@@ -240,9 +208,13 @@ include '../includes/header.php';
                 <div class="form-section">
                     <h2>Product Status</h2>
                     
-                    <div class="form-group checkbox-group">
-                        <input type="checkbox" id="is_active" name="is_active" checked>
-                        <label for="is_active">Make this product visible in the marketplace</label>
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status" name="status" required>
+                            <option value="available" <?php echo (isset($_POST['status']) && $_POST['status'] == 'available') ? 'selected' : ''; ?>>Available</option>
+                            <option value="hidden" <?php echo (isset($_POST['status']) && $_POST['status'] == 'hidden') ? 'selected' : ''; ?>>Hidden</option>
+                            <option value="sold_out" <?php echo (isset($_POST['status']) && $_POST['status'] == 'sold_out') ? 'selected' : ''; ?>>Sold Out</option>
+                        </select>
                     </div>
                 </div>
                 
@@ -257,34 +229,21 @@ include '../includes/header.php';
 
 <script>
     // Image preview functionality
-    document.getElementById('images').addEventListener('change', function(event) {
+    document.getElementById('image').addEventListener('change', function(event) {
         const preview = document.getElementById('image-preview');
         preview.innerHTML = '';
         
-        if (this.files.length > 5) {
-            alert('You can only upload a maximum of 5 images');
-            this.value = '';
-            return;
-        }
-        
-        for (let i = 0; i < this.files.length; i++) {
-            const file = this.files[i];
-            if (!file.type.match('image.*')) {
-                continue;
-            }
-            
+        const file = event.target.files[0];
+        if (file) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'image-preview';
-                
                 const img = document.createElement('img');
                 img.src = e.target.result;
-                
-                imgContainer.appendChild(img);
-                preview.appendChild(imgContainer);
+                img.style.maxWidth = '200px';
+                img.style.marginTop = '10px';
+                img.style.borderRadius = '4px';
+                preview.appendChild(img);
             }
-            
             reader.readAsDataURL(file);
         }
     });

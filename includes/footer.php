@@ -15,30 +15,30 @@
             <div class="footer-section">
                 <h3>Quick Links</h3>
                 <ul>
-                    <li><a href="index.php">Home</a></li>
-                    <li><a href="marketplace.php">Marketplace</a></li>
-                    <li><a href="about.php">About Us</a></li>
-                    <li><a href="contact.php">Contact</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/index.php">Home</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/marketplace.php">Marketplace</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/about.php">About Us</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/contact.php">Contact</a></li>
                 </ul>
             </div>
             
             <div class="footer-section">
                 <h3>For Farmers</h3>
                 <ul>
-                    <li><a href="register.php?type=farmer">Join as Farmer</a></li>
-                    <li><a href="farmer/dashboard.php">Farmer Dashboard</a></li>
-                    <li><a href="farmer/add-product.php">Add Products</a></li>
-                    <li><a href="farmer/orders.php">Manage Orders</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/register.php?type=farmer">Join as Farmer</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/farmer/dashboard.php">Farmer Dashboard</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/farmer/add-product.php">Add Products</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/farmer/orders.php">Manage Orders</a></li>
                 </ul>
             </div>
             
             <div class="footer-section">
                 <h3>For Consumers</h3>
                 <ul>
-                    <li><a href="register.php?type=consumer">Join as Consumer</a></li>
-                    <li><a href="marketplace.php">Browse Products</a></li>
-                    <li><a href="consumer/orders.php">Track Orders</a></li>
-                    <li><a href="consumer/dashboard.php">Consumer Dashboard</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/register.php?type=consumer">Join as Consumer</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/marketplace.php">Browse Products</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/consumer/orders.php">Track Orders</a></li>
+                    <li><a href="<?php echo SITE_URL; ?>/consumer/dashboard.php">Consumer Dashboard</a></li>
                 </ul>
             </div>
         </div>
@@ -48,3 +48,7 @@
         </div>
     </div>
 </footer>
+
+<script src="<?php echo SITE_URL; ?>/assets/js/main.js"></script>
+</body>
+</html>

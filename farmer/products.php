@@ -17,16 +17,13 @@ if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
     $productId = $_GET['delete'];
     
     // Check if product belongs to this farmer
-    $query = "SELECT id FROM products WHERE id = ? AND user_id = ?";
+    $query = "SELECT id FROM products WHERE id = ? AND farmer_id = ?";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("ii", $productId, $farmerId);
     $stmt->execute();
     $result = $stmt->get_result();
     
     if ($result->num_rows > 0) {
-        // Delete product images first
-        $conn->query("DELETE FROM product_images WHERE product_id = $productId");
-        
         // Delete product
         $conn->query("DELETE FROM products WHERE id = $productId");
         
@@ -45,11 +42,10 @@ $search = isset($_GET['search']) ? $_GET['search'] : '';
 $category = isset($_GET['category']) ? (int)$_GET['category'] : 0;
 
 // Build query based on filters
-$query = "SELECT p.*, c.name as category_name, 
-          (SELECT image_url FROM product_images WHERE product_id = p.id LIMIT 1) as image_url 
+$query = "SELECT p.*, c.name as category_name 
           FROM products p 
           LEFT JOIN product_categories c ON p.category_id = c.id 
-          WHERE p.user_id = ?";
+          WHERE p.farmer_id = ?";
 
 $params = [$farmerId];
 $types = "i";
@@ -69,16 +65,16 @@ if ($category > 0) {
 }
 
 if ($filter == 'low_stock') {
-    $query .= " AND p.stock_quantity < 10";
+    $query .= " AND p.quantity_available < 10";
 } elseif ($filter == 'out_of_stock') {
-    $query .= " AND p.stock_quantity = 0";
+    $query .= " AND p.quantity_available = 0";
 } elseif ($filter == 'active') {
-    $query .= " AND p.is_active = 1";
+    $query .= " AND p.status = 'available'";
 } elseif ($filter == 'inactive') {
-    $query .= " AND p.is_active = 0";
+    $query .= " AND p.status = 'hidden'";
 }
 
-$query .= " ORDER BY p.created_at DESC";
+$query .= " ORDER BY p.date_added DESC";
 
 // Get all categories for filter dropdown
 $categories = [];
@@ -98,6 +94,8 @@ while ($row = $result->fetch_assoc()) {
     $products[] = $row;
 }
 
+$page_title = 'My Products';
+include '../includes/head.php';
 include '../includes/header.php';
 ?>
 
@@ -105,10 +103,14 @@ include '../includes/header.php';
     <div class="dashboard-sidebar">
         <div class="farmer-profile">
             <div class="farmer-avatar">
-                <i class="fas fa-user-circle"></i>
+                <?php if (!empty($_SESSION['profile_image'])): ?>
+                    <img src="../uploads/profiles/<?php echo $_SESSION['profile_image']; ?>" alt="Profile Picture">
+                <?php else: ?>
+                    <i class="fas fa-user-circle"></i>
+                <?php endif; ?>
             </div>
-            <h3><?php echo htmlspecialchars($_SESSION['username']); ?></h3>
-            <p>Farmer</p>
+            <h3><?php echo htmlspecialchars(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')); ?></h3>
+            <p>Farmer Dashboard</p>
         </div>
         <nav class="dashboard-nav">
             <ul>
@@ -173,17 +175,17 @@ include '../includes/header.php';
                 <?php foreach ($products as $product): ?>
                     <div class="product-card">
                         <div class="product-image">
-                            <?php if ($product['image_url']): ?>
-                                <img src="<?php echo htmlspecialchars($product['image_url']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                            <?php if ($product['image']): ?>
+                                <img src="../uploads/products/<?php echo $product['image']; ?>" alt="<?php echo $product['name']; ?>">
                             <?php else: ?>
-                                <div class="no-image"><i class="fas fa-image"></i></div>
+                                <img src="../assets/images/product-placeholder.jpg" alt="No image">
                             <?php endif; ?>
                             
                             <div class="product-status">
-                                <?php if ($product['is_active']): ?>
+                                <?php if ($product['status'] !== 'hidden'): ?>
                                     <span class="status active">Active</span>
                                 <?php else: ?>
-                                    <span class="status inactive">Inactive</span>
+                                    <span class="status inactive">Hidden</span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -193,12 +195,14 @@ include '../includes/header.php';
                             <p class="product-category"><?php echo htmlspecialchars($product['category_name']); ?></p>
                             <div class="product-meta">
                                 <span class="price">KSh <?php echo number_format($product['price'], 2); ?></span>
-                                <span class="stock <?php echo $product['stock_quantity'] <= 5 ? 'low-stock' : ''; ?>">
+                                <span class="stock <?php echo ($product['quantity_available'] <= 5 && $product['quantity_available'] > 0) ? 'low-stock' : ($product['quantity_available'] == 0 ? 'out-of-stock' : ''); ?>">
                                     <?php 
-                                    if ($product['stock_quantity'] == 0) {
-                                        echo 'Out of stock';
+                                    if ($product['quantity_available'] == 0) {
+                                        echo '<i class="fas fa-times-circle"></i> Out of stock';
+                                    } elseif ($product['quantity_available'] <= 5) {
+                                        echo '<i class="fas fa-exclamation-triangle"></i> ' . $product['quantity_available'] . ' left';
                                     } else {
-                                        echo $product['stock_quantity'] . ' in stock';
+                                        echo '<i class="fas fa-check-circle"></i> ' . $product['quantity_available'] . ' in stock';
                                     }
                                     ?>
                                 </span>
@@ -206,9 +210,15 @@ include '../includes/header.php';
                         </div>
                         
                         <div class="product-actions">
-                            <a href="edit-product.php?id=<?php echo $product['id']; ?>" class="btn-small btn-edit">Edit</a>
-                            <a href="../product.php?id=<?php echo $product['id']; ?>" class="btn-small btn-view" target="_blank">View</a>
-                            <a href="products.php?delete=<?php echo $product['id']; ?>" class="btn-small btn-delete" onclick="return confirm('Are you sure you want to delete this product?')">Delete</a>
+                            <a href="edit-product.php?id=<?php echo $product['id']; ?>" class="btn-small btn-edit" title="Edit Product">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            <a href="../product.php?id=<?php echo $product['id']; ?>" class="btn-small btn-view" target="_blank" title="Preview Product">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            <a href="products.php?delete=<?php echo $product['id']; ?>" class="btn-small btn-delete" onclick="return confirm('Are you sure you want to delete this product?')" title="Delete Product">
+                                <i class="fas fa-trash"></i> Delete
+                            </a>
                         </div>
                     </div>
                 <?php endforeach; ?>

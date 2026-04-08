@@ -2,19 +2,9 @@
 session_start();
 include_once 'includes/config.php';
 include_once 'includes/functions.php';
+include_once 'includes/head.php';
+include_once 'includes/header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agriconnect - Connecting Kenyan Farmers and Consumers</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-</head>
-<body>
-    <?php include_once 'includes/header.php'; ?>
     
     <main>
         <section class="hero">
@@ -28,7 +18,7 @@ include_once 'includes/functions.php';
                     </div>
                 </div>
                 <div class="hero-image">
-                    <img src="assets/images/hero-image.svg" alt="Kenyan farmers and consumers connected">
+                    <img src="Images/autonomous-agriculture.webp" alt="Kenyan farmers and consumers connected">
                 </div>
             </div>
         </section>
@@ -120,7 +110,7 @@ include_once 'includes/functions.php';
                             <p>"Agriconnect has transformed my farming business. I now sell directly to consumers at better prices than I ever received from middlemen."</p>
                         </div>
                         <div class="testimonial-author">
-                            <img src="assets/images/farmer1.svg" alt="Farmer">
+                            <img src="Images/istockphoto-518782849-612x612.jpg" alt="Farmer">
                             <div>
                                 <h4>John Mwangi</h4>
                                 <p>Small-scale Farmer, Nyeri</p>
@@ -132,7 +122,7 @@ include_once 'includes/functions.php';
                             <p>"I love knowing exactly where my food comes from. The produce is fresher and more affordable than what I find in supermarkets."</p>
                         </div>
                         <div class="testimonial-author">
-                            <img src="assets/images/consumer1.svg" alt="Consumer">
+                            <img src="Images/Green and White Organic Agriculture Logo.png" alt="Consumer">
                             <div>
                                 <h4>Sarah Ochieng</h4>
                                 <p>Consumer, Nairobi</p>
@@ -145,7 +135,3 @@ include_once 'includes/functions.php';
     </main>
 
     <?php include_once 'includes/footer.php'; ?>
-
-    <script src="assets/js/main.js"></script>
-</body>
-</html>

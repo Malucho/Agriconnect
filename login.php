@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['first_name'] = $user['first_name'];
                     $_SESSION['last_name'] = $user['last_name'];
                     $_SESSION['email'] = $user['email'];
+                    $_SESSION['profile_image'] = $user['profile_image'];
                     
                     // Update last login time
                     $stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
@@ -72,19 +73,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+$page_title = 'Login';
+include_once 'includes/head.php';
+include_once 'includes/header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Agriconnect</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-</head>
-<body>
-    <?php include_once 'includes/header.php'; ?>
     
     <main>
         <section class="form-section">
@@ -132,6 +124,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <a href="register.php?type=farmer" class="btn btn-outline">Register as Farmer</a>
                                 <a href="register.php?type=consumer" class="btn btn-outline">Register as Consumer</a>
                             </div>
+                            <p style="margin-top: 10px; font-size: 0.8rem;">
+                                <a href="admin/login.php" style="color: #777;">Admin Login</a> | 
+                                <a href="admin/register.php" style="color: #777;">Admin Register</a>
+                            </p>
                         </div>
                     </form>
                 </div>
@@ -140,7 +136,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
     
     <?php include_once 'includes/footer.php'; ?>
-    
-    <script src="assets/js/main.js"></script>
-</body>
-</html>

@@ -209,10 +209,11 @@ function getProductById($product_id) {
     global $conn;
     
     $stmt = $conn->prepare("
-        SELECT p.*, u.first_name, u.last_name, u.profile_image, u.phone, u.email, pc.name as category_name
+        SELECT p.*, u.first_name, u.last_name, u.profile_image, u.phone, u.email, u.county, u.location, pc.name as category_name
         FROM products p
         JOIN users u ON p.farmer_id = u.id
         JOIN product_categories pc ON p.category_id = pc.id
+        LEFT JOIN farmer_profiles fp ON u.id = fp.user_id
         WHERE p.id = ?
     ");
     $stmt->bind_param("i", $product_id);
@@ -224,6 +225,62 @@ function getProductById($product_id) {
     }
     
     return false;
+}
+
+/**
+ * Get first image of a product
+ * 
+ * @param int $product_id The product ID
+ * @return string|bool The image filename or false if not found
+ */
+function getProductFirstImage($product_id) {
+    global $conn;
+    
+    // First check the products table itself for a main image
+    $stmt = $conn->prepare("SELECT image FROM products WHERE id = ?");
+    $stmt->bind_param("i", $product_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    
+    if ($row && !empty($row['image'])) {
+        return $row['image'];
+    }
+    
+    // Then check the product_images table
+    $stmt = $conn->prepare("SELECT image_path FROM product_images WHERE product_id = ? ORDER BY is_primary DESC LIMIT 1");
+    $stmt->bind_param("i", $product_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    
+    if ($row) {
+        return $row['image_path'];
+    }
+    
+    return false;
+}
+
+/**
+ * Get farmer name by ID
+ * 
+ * @param int $farmer_id The farmer ID
+ * @return string Farmer name
+ */
+function getFarmerName($farmer_id) {
+    global $conn;
+    
+    $stmt = $conn->prepare("SELECT first_name, last_name FROM users WHERE id = ?");
+    $stmt->bind_param("i", $farmer_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    
+    if ($row) {
+        return $row['first_name'] . ' ' . $row['last_name'];
+    }
+    
+    return 'Unknown Farmer';
 }
 
 /**
@@ -288,7 +345,7 @@ function getProductReviews($product_id) {
  * @param int $product_id The product ID
  * @return float Average rating
  */
-function getAverageRating($product_id) {
+function calculateAverageRating($product_id) {
     global $conn;
     
     $stmt = $conn->prepare("SELECT AVG(rating) as avg_rating FROM reviews WHERE product_id = ?");
@@ -298,6 +355,16 @@ function getAverageRating($product_id) {
     $row = $result->fetch_assoc();
     
     return round($row['avg_rating'], 1) ?: 0;
+}
+
+/**
+ * Get average rating for a product (Alias for calculateAverageRating)
+ * 
+ * @param int $product_id The product ID
+ * @return float Average rating
+ */
+function getAverageRating($product_id) {
+    return calculateAverageRating($product_id);
 }
 
 /**
@@ -404,6 +471,15 @@ function displayFlashMessage() {
     }
     
     return '';
+}
+
+/**
+ * Display flash message (Alias for displayFlashMessage)
+ * 
+ * @return string HTML for the flash message or empty string if none exists
+ */
+function displayFlashMessages() {
+    echo displayFlashMessage();
 }
 
 /**
@@ -786,6 +862,8 @@ function getPaginationLinks($current_page, $total_pages, $url_pattern) {
     // Previous page link
     if ($current_page > 1) {
         $links .= '<a href="' . sprintf($url_pattern, $current_page - 1) . '"><i class="fas fa-chevron-left"></i></a>';
+    } else {
+        $links .= '<a href="#" class="disabled"><i class="fas fa-chevron-left"></i></a>';
     }
     
     // Page number links
@@ -795,7 +873,7 @@ function getPaginationLinks($current_page, $total_pages, $url_pattern) {
     if ($start_page > 1) {
         $links .= '<a href="' . sprintf($url_pattern, 1) . '">1</a>';
         if ($start_page > 2) {
-            $links .= '<span>...</span>';
+            $links .= '<span class="dots">...</span>';
         }
     }
     
@@ -809,7 +887,7 @@ function getPaginationLinks($current_page, $total_pages, $url_pattern) {
     
     if ($end_page < $total_pages) {
         if ($end_page < $total_pages - 1) {
-            $links .= '<span>...</span>';
+            $links .= '<span class="dots">...</span>';
         }
         $links .= '<a href="' . sprintf($url_pattern, $total_pages) . '">' . $total_pages . '</a>';
     }
@@ -817,11 +895,106 @@ function getPaginationLinks($current_page, $total_pages, $url_pattern) {
     // Next page link
     if ($current_page < $total_pages) {
         $links .= '<a href="' . sprintf($url_pattern, $current_page + 1) . '"><i class="fas fa-chevron-right"></i></a>';
+    } else {
+        $links .= '<a href="#" class="disabled"><i class="fas fa-chevron-right"></i></a>';
     }
     
     $links .= '</div>';
     
     return $links;
+}
+
+/**
+ * Count all users by type
+ * 
+ * @param string $type The user type (optional)
+ * @return int Total count
+ */
+function countAllUsers($type = null) {
+    global $conn;
+    $sql = "SELECT COUNT(*) as count FROM users";
+    if ($type) {
+        $sql .= " WHERE user_type = '$type'";
+    }
+    $result = $conn->query($sql);
+    $row = $result->fetch_assoc();
+    return $row['count'];
+}
+
+/**
+ * Count all products
+ * 
+ * @return int Total count
+ */
+function countAllProducts() {
+    global $conn;
+    $result = $conn->query("SELECT COUNT(*) as count FROM products");
+    $row = $result->fetch_assoc();
+    return $row['count'];
+}
+
+/**
+ * Count all orders
+ * 
+ * @return int Total count
+ */
+function countAllOrders() {
+    global $conn;
+    $result = $conn->query("SELECT COUNT(*) as count FROM orders");
+    $row = $result->fetch_assoc();
+    return $row['count'];
+}
+
+/**
+ * Calculate total site revenue
+ * 
+ * @return float Total revenue
+ */
+function calculateTotalRevenue() {
+    global $conn;
+    $result = $conn->query("SELECT SUM(total_amount) as total FROM orders WHERE payment_status = 'paid' OR status = 'completed'");
+    $row = $result->fetch_assoc();
+    return $row['total'] ?: 0;
+}
+
+/**
+ * Get all users with details
+ */
+function getAllUsers($limit = 20, $offset = 0) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT * FROM users ORDER BY registration_date DESC LIMIT ? OFFSET ?");
+    $stmt->bind_param("ii", $limit, $offset);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+/**
+ * Get all products with details
+ */
+function getAllProducts($limit = 20, $offset = 0) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT p.*, u.first_name, u.last_name, c.name as category_name 
+                           FROM products p 
+                           JOIN users u ON p.farmer_id = u.id 
+                           JOIN product_categories c ON p.category_id = c.id 
+                           ORDER BY p.date_added DESC LIMIT ? OFFSET ?");
+    $stmt->bind_param("ii", $limit, $offset);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+/**
+ * Get all orders with details
+ */
+function getAllOrders($limit = 20, $offset = 0) {
+    global $conn;
+    $stmt = $conn->prepare("SELECT o.*, u.first_name, u.last_name 
+                           FROM orders o 
+                           JOIN users u ON o.consumer_id = u.id 
+                           ORDER BY o.order_date DESC LIMIT ? OFFSET ?");
+    $stmt->bind_param("ii", $limit, $offset);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
 /**

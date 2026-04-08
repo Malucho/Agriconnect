@@ -11,20 +11,22 @@ if (!isLoggedIn() || $_SESSION['user_type'] != 'farmer') {
 }
 
 $farmerId = $_SESSION['user_id'];
-$farmerName = '';
+$farmerName = $_SESSION['first_name'] . ' ' . $_SESSION['last_name'];
 $totalProducts = countFarmerProducts($farmerId);
 $totalOrders = countFarmerOrders($farmerId);
 $totalRevenue = calculateFarmerRevenue($farmerId);
-$unreadMessages = countUnreadMessages($farmerId);
+$unreadMessages = getUnreadMessagesCount($farmerId);
 
-// Get farmer name
-$query = "SELECT name FROM farmer_profiles WHERE user_id = ?";
+// Get farm name
+$query = "SELECT farm_name FROM farmer_profiles WHERE user_id = ?";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $farmerId);
 $stmt->execute();
 $result = $stmt->get_result();
 if ($row = $result->fetch_assoc()) {
-    $farmerName = $row['name'];
+    $farmName = $row['farm_name'];
+} else {
+    $farmName = $farmerName . "'s Farm";
 }
 
 // Get recent orders
@@ -32,9 +34,9 @@ $recentOrders = getFarmerOrders($farmerId, 5);
 
 // Get low stock products (less than 10 items)
 $lowStockProducts = [];
-$query = "SELECT id, name, price, stock_quantity FROM products 
-          WHERE user_id = ? AND stock_quantity < 10 
-          ORDER BY stock_quantity ASC LIMIT 5";
+$query = "SELECT id, name, price, quantity_available FROM products 
+          WHERE farmer_id = ? AND quantity_available < 10 
+          ORDER BY quantity_available ASC LIMIT 5";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $farmerId);
 $stmt->execute();
@@ -43,6 +45,7 @@ while ($row = $result->fetch_assoc()) {
     $lowStockProducts[] = $row;
 }
 
+include '../includes/head.php';
 include '../includes/header.php';
 ?>
 
@@ -50,10 +53,14 @@ include '../includes/header.php';
     <div class="dashboard-sidebar">
         <div class="farmer-profile">
             <div class="farmer-avatar">
-                <i class="fas fa-user-circle"></i>
+                <?php if (!empty($_SESSION['profile_image'])): ?>
+                    <img src="../uploads/profiles/<?php echo $_SESSION['profile_image']; ?>" alt="Profile Picture">
+                <?php else: ?>
+                    <i class="fas fa-user-circle"></i>
+                <?php endif; ?>
             </div>
             <h3><?php echo htmlspecialchars($farmerName); ?></h3>
-            <p>Farmer</p>
+            <p><?php echo htmlspecialchars($farmName); ?></p>
         </div>
         <nav class="dashboard-nav">
             <ul>
@@ -109,18 +116,19 @@ include '../includes/header.php';
                     <i class="fas fa-envelope"></i>
                 </div>
                 <div class="stat-details">
-                    <h3>Messages</h3>
-                    <p class="stat-number"><?php echo $unreadMessages; ?> unread</p>
+                    <h3>Unread Messages</h3>
+                    <p class="stat-number"><?php echo $unreadMessages; ?></p>
                 </div>
             </div>
         </div>
-        
-        <div class="dashboard-sections">
-            <div class="dashboard-section">
-                <h2>Recent Orders</h2>
-                <?php if (empty($recentOrders)): ?>
-                    <p class="no-data">No recent orders found.</p>
-                <?php else: ?>
+
+        <div class="dashboard-grid">
+            <div class="dashboard-section recent-orders">
+                <div class="section-header">
+                    <h2>Recent Orders</h2>
+                    <a href="orders.php" class="btn-small">View All</a>
+                </div>
+                <div class="table-responsive">
                     <table class="dashboard-table">
                         <thead>
                             <tr>
@@ -133,29 +141,33 @@ include '../includes/header.php';
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($recentOrders as $order): ?>
+                            <?php if (!empty($recentOrders)): ?>
+                                <?php foreach ($recentOrders as $order): ?>
                                 <tr>
                                     <td>#<?php echo $order['id']; ?></td>
-                                    <td><?php echo htmlspecialchars($order['customer_name']); ?></td>
-                                    <td><?php echo date('M d, Y', strtotime($order['created_at'])); ?></td>
-                                    <td>KSh <?php echo number_format($order['total_amount'], 2); ?></td>
+                                    <td><?php echo htmlspecialchars($order['first_name'] . ' ' . $order['last_name']); ?></td>
+                                    <td><?php echo date('M d, Y', strtotime($order['order_date'])); ?></td>
+                                    <td>KSh <?php echo number_format($order['subtotal'], 2); ?></td>
                                     <td><span class="status-badge status-<?php echo strtolower($order['status']); ?>"><?php echo $order['status']; ?></span></td>
                                     <td><a href="order-detail.php?id=<?php echo $order['id']; ?>" class="btn-small">View</a></td>
                                 </tr>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="6" class="no-data">No orders found</td>
+                                </tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
-                    <div class="view-all">
-                        <a href="orders.php" class="btn-text">View All Orders <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                <?php endif; ?>
+                </div>
             </div>
             
-            <div class="dashboard-section">
-                <h2>Low Stock Products</h2>
-                <?php if (empty($lowStockProducts)): ?>
-                    <p class="no-data">No low stock products.</p>
-                <?php else: ?>
+            <div class="dashboard-section low-stock">
+                <div class="section-header">
+                    <h2>Low Stock Alerts</h2>
+                    <a href="products.php?filter=low_stock" class="btn-small">View All</a>
+                </div>
+                <div class="table-responsive">
                     <table class="dashboard-table">
                         <thead>
                             <tr>
@@ -166,78 +178,30 @@ include '../includes/header.php';
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($lowStockProducts as $product): ?>
+                            <?php if (!empty($lowStockProducts)): ?>
+                                <?php foreach ($lowStockProducts as $product): ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($product['name']); ?></td>
                                     <td>KSh <?php echo number_format($product['price'], 2); ?></td>
                                     <td>
-                                        <span class="stock-level <?php echo $product['stock_quantity'] <= 5 ? 'critical' : 'warning'; ?>">
-                                            <?php echo $product['stock_quantity']; ?> left
+                                        <span class="stock-level <?php echo $product['quantity_available'] <= 5 ? 'critical' : 'warning'; ?>">
+                                            <?php echo $product['quantity_available']; ?> left
                                         </span>
                                     </td>
                                     <td><a href="edit-product.php?id=<?php echo $product['id']; ?>" class="btn-small">Update</a></td>
                                 </tr>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="4" class="no-data">No low stock alerts</td>
+                                </tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
-                    <div class="view-all">
-                        <a href="products.php?filter=low_stock" class="btn-text">View All Low Stock <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-        
-        <div class="dashboard-sections">
-            <div class="dashboard-section full-width">
-                <h2>Quick Actions</h2>
-                <div class="quick-actions">
-                    <a href="add-product.php" class="quick-action-card">
-                        <div class="quick-action-icon">
-                            <i class="fas fa-plus-circle"></i>
-                        </div>
-                        <h3>Add New Product</h3>
-                        <p>List a new product for sale</p>
-                    </a>
-                    
-                    <a href="profile.php" class="quick-action-card">
-                        <div class="quick-action-icon">
-                            <i class="fas fa-user-edit"></i>
-                        </div>
-                        <h3>Update Profile</h3>
-                        <p>Edit your farm details</p>
-                    </a>
-                    
-                    <a href="messages.php" class="quick-action-card">
-                        <div class="quick-action-icon">
-                            <i class="fas fa-envelope-open-text"></i>
-                        </div>
-                        <h3>Check Messages</h3>
-                        <p>Respond to customer inquiries</p>
-                    </a>
-                    
-                    <a href="../marketplace.php" class="quick-action-card">
-                        <div class="quick-action-icon">
-                            <i class="fas fa-store"></i>
-                        </div>
-                        <h3>Visit Marketplace</h3>
-                        <p>See how your products appear</p>
-                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-    // Add any dashboard-specific JavaScript here
-    document.addEventListener('DOMContentLoaded', function() {
-        // Example: Auto-refresh dashboard stats every 5 minutes
-        setInterval(function() {
-            // This would typically use AJAX to refresh stats without page reload
-            // For now, we'll just log a message
-            console.log('Dashboard stats would refresh here');
-        }, 300000); // 5 minutes
-    });
-</script>
 
 <?php include '../includes/footer.php'; ?>
