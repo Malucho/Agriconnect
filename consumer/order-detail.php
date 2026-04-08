@@ -55,9 +55,15 @@ include '../includes/header.php';
 <div class="dashboard-container">
     <div class="dashboard-sidebar">
         <div class="farmer-profile">
-            <div class="farmer-avatar"><i class="fas fa-user-circle"></i></div>
+            <div class="farmer-avatar">
+                <?php if (!empty($_SESSION['profile_image'])): ?>
+                    <img src="../uploads/profiles/<?php echo $_SESSION['profile_image']; ?>" alt="Profile Picture">
+                <?php else: ?>
+                    <i class="fas fa-user-circle"></i>
+                <?php endif; ?>
+            </div>
             <h3><?php echo htmlspecialchars($_SESSION['first_name'] . ' ' . $_SESSION['last_name']); ?></h3>
-            <p>Consumer</p>
+            <p>Consumer Dashboard</p>
         </div>
         <nav class="dashboard-nav">
             <ul>
@@ -75,23 +81,28 @@ include '../includes/header.php';
             <a href="orders.php" class="btn btn-outline">Back to Orders</a>
         </div>
         
-        <div class="order-detail-card" style="background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2>Order Information</h2>
+            </div>
+            <div class="order-info-grid">
                 <div>
-                    <h3 style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Order Info</h3>
+                    <h3>Order Details</h3>
                     <p><strong>Date:</strong> <?php echo date('F d, Y', strtotime($order['order_date'])); ?></p>
                     <p><strong>Status:</strong> <span class="status-badge status-<?php echo strtolower($order['status']); ?>"><?php echo ucfirst($order['status']); ?></span></p>
                     <p><strong>Payment:</strong> <?php echo ucfirst($order['payment_status']); ?> (<?php echo str_replace('_', ' ', $order['payment_method']); ?>)</p>
                 </div>
                 <div>
-                    <h3 style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Shipping Address</h3>
+                    <h3>Shipping Address</h3>
                     <p><?php echo nl2br(htmlspecialchars($order['delivery_address'])); ?></p>
                 </div>
             </div>
         </div>
 
         <div class="dashboard-section">
-            <h2>Order Items</h2>
+            <div class="section-header">
+                <h2>Order Items</h2>
+            </div>
             <div class="table-responsive">
                 <table class="dashboard-table">
                     <thead>
@@ -107,9 +118,9 @@ include '../includes/header.php';
                         <?php foreach ($items as $item): ?>
                         <tr>
                             <td>
-                                <div style="display: flex; align-items: center; gap: 10px;">
+                                <div class="product-info-cell">
                                     <?php if ($item['image']): ?>
-                                        <img src="../uploads/products/<?php echo $item['image']; ?>" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                        <img src="../uploads/products/<?php echo $item['image']; ?>" alt="Product Image" class="product-thumb">
                                     <?php endif; ?>
                                     <span><?php echo htmlspecialchars($item['name']); ?></span>
                                 </div>
@@ -123,8 +134,8 @@ include '../includes/header.php';
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="4" style="text-align: right; font-weight: bold; padding: 15px;">Total Paid:</td>
-                            <td style="font-weight: bold; padding: 15px; color: #4CAF50; font-size: 1.2rem;">KSh <?php echo number_format($order['total_amount'], 2); ?></td>
+                            <td colspan="4" class="text-right font-bold">Total Paid:</td>
+                            <td class="font-bold text-primary text-lg">KSh <?php echo number_format($order['total_amount'], 2); ?></td>
                         </tr>
                     </tfoot>
                 </table>

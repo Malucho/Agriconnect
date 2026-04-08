@@ -25,7 +25,7 @@ while ($row = $result->fetch_assoc()) {
 }
 
 // Get stats
-$totalOrders = count($_SESSION['cart'] ?? []); // Placeholder for active cart items
+$totalOrders = $totalOrdersCount;
 $stmt = $conn->prepare("SELECT COUNT(*) as count FROM orders WHERE consumer_id = ?");
 $stmt->bind_param("i", $consumerId);
 $stmt->execute();
@@ -40,10 +40,14 @@ include '../includes/header.php';
     <div class="dashboard-sidebar">
         <div class="farmer-profile">
             <div class="farmer-avatar">
-                <i class="fas fa-user-circle"></i>
+                <?php if (!empty($_SESSION['profile_image'])): ?>
+                    <img src="../uploads/profiles/<?php echo $_SESSION['profile_image']; ?>" alt="Profile Picture">
+                <?php else: ?>
+                    <i class="fas fa-user-circle"></i>
+                <?php endif; ?>
             </div>
             <h3><?php echo htmlspecialchars($consumerName); ?></h3>
-            <p>Consumer</p>
+            <p>Consumer Dashboard</p>
         </div>
         <nav class="dashboard-nav">
             <ul>

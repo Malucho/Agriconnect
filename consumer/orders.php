@@ -31,9 +31,15 @@ include '../includes/header.php';
 <div class="dashboard-container">
     <div class="dashboard-sidebar">
         <div class="farmer-profile">
-            <div class="farmer-avatar"><i class="fas fa-user-circle"></i></div>
+            <div class="farmer-avatar">
+                <?php if (!empty($_SESSION['profile_image'])): ?>
+                    <img src="../uploads/profiles/<?php echo $_SESSION['profile_image']; ?>" alt="Profile Picture">
+                <?php else: ?>
+                    <i class="fas fa-user-circle"></i>
+                <?php endif; ?>
+            </div>
             <h3><?php echo htmlspecialchars($_SESSION['first_name'] . ' ' . $_SESSION['last_name']); ?></h3>
-            <p>Consumer</p>
+            <p>Consumer Dashboard</p>
         </div>
         <nav class="dashboard-nav">
             <ul>

@@ -146,11 +146,12 @@ include_once 'includes/header.php';
 ?>
     
     <main>
-        <section class="form-section">
+        <section class="form-section auth-section">
             <div class="container">
-                <div class="form-container">
-                    <div class="form-title">
-                        <h2>Create an Account</h2>
+                <div class="auth-container">
+                    <div class="auth-header">
+                        <img src="Images/Green and White Organic Agriculture Logo.png" alt="Agriconnect Logo" class="auth-logo">
+                        <h2>Create Your Account</h2>
                         <p>Join Agriconnect as a <?php echo ucfirst($user_type); ?></p>
                     </div>
                     
@@ -164,38 +165,41 @@ include_once 'includes/header.php';
                         </div>
                     <?php endif; ?>
                     
-                    <form action="register.php" method="post">
-                        <div class="user-type-toggle">
-                            <div class="toggle-option <?php echo $user_type === 'farmer' ? 'active' : ''; ?>">
-                                <input type="radio" name="user_type" id="farmer" value="farmer" <?php echo $user_type === 'farmer' ? 'checked' : ''; ?>>
-                                <label for="farmer">I am a Farmer</label>
-                            </div>
-                            <div class="toggle-option <?php echo $user_type === 'consumer' ? 'active' : ''; ?>">
-                                <input type="radio" name="user_type" id="consumer" value="consumer" <?php echo $user_type === 'consumer' ? 'checked' : ''; ?>>
-                                <label for="consumer">I am a Consumer</label>
+                    <form action="register.php" method="post" class="auth-form">
+                        <div class="form-group">
+                            <label>Register as:</label>
+                            <div class="user-type-toggle">
+                                <div class="toggle-option <?php echo $user_type === 'farmer' ? 'active' : ''; ?>">
+                                    <input type="radio" name="user_type" id="farmer" value="farmer" <?php echo $user_type === 'farmer' ? 'checked' : ''; ?>>
+                                    <label for="farmer"><i class="fas fa-tractor"></i> Farmer</label>
+                                </div>
+                                <div class="toggle-option <?php echo $user_type === 'consumer' ? 'active' : ''; ?>">
+                                    <input type="radio" name="user_type" id="consumer" value="consumer" <?php echo $user_type === 'consumer' ? 'checked' : ''; ?>>
+                                    <label for="consumer"><i class="fas fa-shopping-basket"></i> Consumer</label>
+                                </div>
                             </div>
                         </div>
                         
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="first_name">First Name</label>
-                                <input type="text" class="form-control" id="first_name" name="first_name" value="<?php echo isset($first_name) ? $first_name : ''; ?>" required>
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="<?php echo isset($first_name) ? htmlspecialchars($first_name) : ''; ?>" required>
                             </div>
                             
                             <div class="form-group">
                                 <label for="last_name">Last Name</label>
-                                <input type="text" class="form-control" id="last_name" name="last_name" value="<?php echo isset($last_name) ? $last_name : ''; ?>" required>
+                                <input type="text" class="form-control" id="last_name" name="last_name" value="<?php echo isset($last_name) ? htmlspecialchars($last_name) : ''; ?>" required>
                             </div>
                         </div>
                         
                         <div class="form-group">
                             <label for="email">Email Address</label>
-                            <input type="email" class="form-control" id="email" name="email" value="<?php echo isset($email) ? $email : ''; ?>" required>
+                            <input type="email" class="form-control" id="email" name="email" value="<?php echo isset($email) ? htmlspecialchars($email) : ''; ?>" required>
                         </div>
                         
                         <div class="form-group">
                             <label for="phone">Phone Number</label>
-                            <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo isset($phone) ? $phone : ''; ?>" placeholder="e.g. +254700000000" required>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo isset($phone) ? htmlspecialchars($phone) : ''; ?>" placeholder="e.g. +254700000000" required>
                         </div>
                         
                         <div class="form-row">
@@ -216,28 +220,33 @@ include_once 'includes/header.php';
                                 <label for="county">County</label>
                                 <select class="form-control" id="county" name="county" required>
                                     <option value="">Select County</option>
-                                    <?php foreach (getKenyanCounties() as $county): ?>
-                                        <option value="<?php echo $county; ?>" <?php echo isset($_POST['county']) && $_POST['county'] === $county ? 'selected' : ''; ?>><?php echo $county; ?></option>
+                                    <?php foreach (getKenyanCounties() as $county_option): ?>
+                                        <option value="<?php echo htmlspecialchars($county_option); ?>" <?php echo isset($_POST['county']) && $_POST['county'] === $county_option ? 'selected' : ''; ?>><?php echo htmlspecialchars($county_option); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                             
                             <div class="form-group">
                                 <label for="location">Specific Location</label>
-                                <input type="text" class="form-control" id="location" name="location" value="<?php echo isset($location) ? $location : ''; ?>" placeholder="e.g. Westlands, Nairobi" required>
+                                <input type="text" class="form-control" id="location" name="location" value="<?php echo isset($location) ? htmlspecialchars($location) : ''; ?>" placeholder="e.g. Westlands, Nairobi" required>
                             </div>
                         </div>
                         
-                        <div class="form-check">
+                        <div class="form-check" style="margin-bottom: 20px;">
                             <input type="checkbox" class="form-check-input" id="terms" name="terms" required>
                             <label class="form-check-label" for="terms">I agree to the <a href="terms.php" target="_blank">Terms and Conditions</a></label>
                         </div>
                         
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">Register</button>
-                            <p>Already have an account? <a href="login.php">Login</a></p>
-                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Register</button>
                     </form>
+                    
+                    <div class="auth-footer">
+                        <p>Already have an account? <a href="login.php">Login</a></p>
+                        <p class="admin-links">
+                            <a href="admin/login.php">Admin Login</a> | 
+                            <a href="admin/register.php">Admin Register</a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -245,11 +254,17 @@ include_once 'includes/header.php';
     
     <script>
         // Toggle user type selection
-        document.querySelectorAll('.toggle-option').forEach(option => {
+        document.querySelectorAll('.user-type-toggle .toggle-option').forEach(option => {
             option.addEventListener('click', function() {
-                document.querySelectorAll('.toggle-option').forEach(opt => opt.classList.remove('active'));
+                document.querySelectorAll('.user-type-toggle .toggle-option').forEach(opt => opt.classList.remove('active'));
                 this.classList.add('active');
-                this.querySelector('input').checked = true;
+                this.querySelector('input[type="radio"]').checked = true;
+                // Update the user type display in the header
+                const userTypeDisplay = document.querySelector('.auth-header p');
+                if (userTypeDisplay) {
+                    const selectedType = this.querySelector('input[type="radio"]').value;
+                    userTypeDisplay.innerHTML = 'Join Agriconnect as a ' + selectedType.charAt(0).toUpperCase() + selectedType.slice(1);
+                }
             });
         });
     </script>

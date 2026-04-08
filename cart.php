@@ -104,91 +104,101 @@ include_once 'includes/head.php';
 include_once 'includes/header.php';
 ?>
 
-<div class="container" style="padding: 40px 15px;">
-    <div class="cart-header" style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
-        <h1>Your Shopping Cart</h1>
-        <?php if (!empty($cart_items)): ?>
-            <a href="cart.php?action=clear" class="btn btn-outline" onclick="return confirm('Are you sure you want to clear your cart?')">Clear Cart</a>
-        <?php endif; ?>
-    </div>
-    
-    <?php displayFlashMessages(); ?>
-    
-    <?php if (empty($cart_items)): ?>
-        <div class="empty-cart" style="text-align: center; padding: 60px 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-            <i class="fas fa-shopping-cart" style="font-size: 4rem; color: #eee; margin-bottom: 20px;"></i>
-            <h2>Your cart is empty</h2>
-            <p style="color: #777; margin-bottom: 30px;">Looks like you haven't added anything to your cart yet.</p>
-            <a href="marketplace.php" class="btn btn-primary">Start Shopping</a>
+<main class="cart-page">
+    <div class="container">
+        <div class="content-header" style="margin-bottom: 30px;">
+            <h1>Shopping Cart</h1>
+            <?php if (!empty($cart_items)): ?>
+                <a href="cart.php?action=clear" class="btn btn-outline" onclick="return confirm('Are you sure you want to clear your cart?')"><i class="fas fa-trash-alt"></i> Clear Cart</a>
+            <?php endif; ?>
         </div>
-    <?php else: ?>
-        <form action="cart.php?action=update" method="POST">
-            <div class="cart-content" style="display: grid; grid-template-columns: 1fr 350px; gap: 30px;">
-                <div class="cart-items-container">
-                    <div class="table-responsive">
-                        <table class="dashboard-table" style="width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-                            <thead>
-                                <tr style="background: #f9f9f9; text-align: left;">
-                                    <th style="padding: 15px;">Product</th>
-                                    <th style="padding: 15px;">Price</th>
-                                    <th style="padding: 15px;">Quantity</th>
-                                    <th style="padding: 15px;">Total</th>
-                                    <th style="padding: 15px;">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($cart_items as $item): ?>
-                                    <tr style="border-bottom: 1px solid #eee;">
-                                        <td style="padding: 15px;">
-                                            <div style="display: flex; align-items: center; gap: 15px;">
-                                                <div style="width: 60px; height: 60px; background: #eee; border-radius: 4px; overflow: hidden; flex-shrink: 0;">
-                                                    <?php if ($item['image']): ?>
-                                                        <img src="uploads/products/<?php echo htmlspecialchars($item['image']); ?>" alt="Product" style="width: 100%; height: 100%; object-fit: cover;">
-                                                    <?php else: ?>
-                                                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #ccc;"><i class="fas fa-image"></i></div>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <div>
-                                                    <h4 style="margin: 0; font-size: 1rem;"><a href="product.php?id=<?php echo $item['id']; ?>" style="color: inherit; text-decoration: none;"><?php echo htmlspecialchars($item['name']); ?></a></h4>
-                                                    <p style="margin: 0; font-size: 0.8rem; color: #777;">Farmer: <?php echo htmlspecialchars($item['farmer_name']); ?></p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style="padding: 15px;">KES <?php echo number_format($item['price'], 2); ?></td>
-                                        <td style="padding: 15px;">
-                                            <input type="number" name="quantity[<?php echo $item['id']; ?>]" value="<?php echo $item['quantity']; ?>" min="1" max="<?php echo $item['quantity_available']; ?>" style="width: 60px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
-                                        </td>
-                                        <td style="padding: 15px; font-weight: 600;">KES <?php echo number_format($item['item_price'], 2); ?></td>
-                                        <td style="padding: 15px;">
-                                            <a href="cart.php?action=remove&id=<?php echo $item['id']; ?>" style="color: #e74c3c;"><i class="fas fa-trash"></i></a>
-                                        </td>
+        
+        <?php displayFlashMessages(); ?>
+        
+        <?php if (empty($cart_items)): ?>
+            <div class="empty-cart-container">
+                <i class="fas fa-shopping-basket"></i>
+                <h2>Your cart is empty</h2>
+                <p>Looks like you haven't added any fresh produce to your cart yet.</p>
+                <a href="marketplace.php" class="btn btn-primary">Browse Marketplace</a>
+            </div>
+        <?php else: ?>
+            <form action="cart.php?action=update" method="POST">
+                <div class="cart-container">
+                    <div class="cart-items">
+                        <div class="table-responsive">
+                            <table class="cart-table">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Price</th>
+                                        <th>Quantity</th>
+                                        <th>Subtotal</th>
+                                        <th></th>
                                     </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($cart_items as $item): ?>
+                                        <tr>
+                                            <td>
+                                                <div class="cart-product">
+                                                    <?php if ($item['image']): ?>
+                                                        <img src="uploads/products/<?php echo htmlspecialchars($item['image']); ?>" alt="Product" class="cart-product-img">
+                                                    <?php else: ?>
+                                                        <div class="cart-product-img" style="display: flex; align-items: center; justify-content: center; color: #ccc;"><i class="fas fa-image fa-2x"></i></div>
+                                                    <?php endif; ?>
+                                                    <div class="cart-product-info">
+                                                        <h4><a href="product.php?id=<?php echo $item['id']; ?>"><?php echo htmlspecialchars($item['name']); ?></a></h4>
+                                                        <p>Farmer: <?php echo htmlspecialchars($item['farmer_name']); ?></p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="cart-price">KES <?php echo number_format($item['price'], 2); ?></td>
+                                            <td class="cart-qty">
+                                                <input type="number" name="quantity[<?php echo $item['id']; ?>]" value="<?php echo $item['quantity']; ?>" min="1" max="<?php echo $item['quantity_available']; ?>">
+                                                <span style="font-size: 0.8rem; display: block; margin-top: 5px; color: #95a5a6;"><?php echo htmlspecialchars($item['unit']); ?></span>
+                                            </td>
+                                            <td class="cart-total">KES <?php echo number_format($item['item_price'], 2); ?></td>
+                                            <td>
+                                                <a href="cart.php?action=remove&id=<?php echo $item['id']; ?>" class="cart-remove" title="Remove Item"><i class="fas fa-times"></i></a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="padding: 20px; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-top: 1px solid #f1f1f1;">
+                            <a href="marketplace.php" class="btn-text"><i class="fas fa-arrow-left"></i> Continue Shopping</a>
+                            <button type="submit" class="btn btn-outline">Update Quantities</button>
+                        </div>
                     </div>
                     
-                    <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <a href="marketplace.php" class="btn-text"><i class="fas fa-arrow-left"></i> Continue Shopping</a>
-                        <button type="submit" class="btn btn-outline">Update Cart</button>
+                    <div class="cart-summary-card">
+                        <h2>Order Summary</h2>
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span>KES <?php echo number_format($total_price, 2); ?></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Delivery</span>
+                            <span style="font-size: 0.85rem;">Calculated at checkout</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Grand Total</span>
+                            <span>KES <?php echo number_format($total_price, 2); ?></span>
+                        </div>
+                        <a href="checkout.php" class="btn btn-primary" style="width: 100%; margin-top: 25px; padding: 15px; font-size: 1.1rem;">Proceed to Checkout <i class="fas fa-arrow-right" style="margin-left: 10px;"></i></a>
+                        
+                        <div style="margin-top: 20px; text-align: center;">
+                            <img src="assets/images/payment-methods.png" alt="Payment Methods" style="max-width: 100%; opacity: 0.6;">
+                            <p style="font-size: 0.75rem; color: #bdc3c7; margin-top: 10px;"><i class="fas fa-lock"></i> Secure Checkout Guaranteed</p>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="cart-summary" style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); height: fit-content;">
-                    <h2 style="margin-bottom: 20px; font-size: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Cart Summary</h2>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                        <span>Items (<?php echo count($cart_items); ?>)</span>
-                        <span>KES <?php echo number_format($total_price, 2); ?></span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 25px; font-weight: 700; font-size: 1.2rem; color: #4CAF50;">
-                        <span>Total</span>
-                        <span>KES <?php echo number_format($total_price, 2); ?></span>
-                    </div>
-                    <a href="checkout.php" class="btn btn-primary" style="width: 100%; padding: 15px; text-align: center; display: block;">Proceed to Checkout</a>
-                </div>
-            </div>
-        </form>
-    <?php endif; ?>
-</div>
+            </form>
+        <?php endif; ?>
+    </div>
+</main>
 
 <?php include_once 'includes/footer.php'; ?>

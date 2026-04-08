@@ -54,9 +54,15 @@ include '../includes/header.php';
 <div class="dashboard-container">
     <div class="dashboard-sidebar">
         <div class="farmer-profile">
-            <div class="farmer-avatar"><i class="fas fa-user-circle"></i></div>
+            <div class="farmer-avatar">
+                <?php if (!empty($_SESSION['profile_image'])): ?>
+                    <img src="../uploads/profiles/<?php echo $_SESSION['profile_image']; ?>" alt="Profile Picture">
+                <?php else: ?>
+                    <i class="fas fa-user-circle"></i>
+                <?php endif; ?>
+            </div>
             <h3><?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></h3>
-            <p>Consumer</p>
+            <p>Consumer Dashboard</p>
         </div>
         <nav class="dashboard-nav">
             <ul>
@@ -72,27 +78,27 @@ include '../includes/header.php';
         <div class="content-header"><h1>My Profile</h1></div>
         <?php displayFlashMessages(); ?>
         
-        <div class="form-container" style="background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); max-width: 600px;">
+        <div class="form-container">
             <form action="" method="POST">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div class="form-row">
                     <div class="form-group">
                         <label>First Name</label>
-                        <input type="text" name="first_name" value="<?php echo htmlspecialchars($user['first_name']); ?>" required class="form-control" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <input type="text" name="first_name" value="<?php echo htmlspecialchars($user['first_name']); ?>" required class="form-control">
                     </div>
                     <div class="form-group">
                         <label>Last Name</label>
-                        <input type="text" name="last_name" value="<?php echo htmlspecialchars($user['last_name']); ?>" required class="form-control" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <input type="text" name="last_name" value="<?php echo htmlspecialchars($user['last_name']); ?>" required class="form-control">
                     </div>
                 </div>
-                <div class="form-group" style="margin-bottom: 20px;">
+                <div class="form-group">
                     <label>Email Address</label>
-                    <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required class="form-control" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required class="form-control">
                 </div>
-                <div class="form-group" style="margin-bottom: 30px;">
+                <div class="form-group">
                     <label>Phone Number</label>
-                    <input type="text" name="phone" value="<?php echo htmlspecialchars($user['phone']); ?>" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <input type="text" name="phone" value="<?php echo htmlspecialchars($user['phone']); ?>" class="form-control">
                 </div>
-                <button type="submit" name="update_profile" class="btn btn-primary" style="width: 100%; padding: 12px;">Update Profile</button>
+                <button type="submit" name="update_profile" class="btn btn-primary">Update Profile</button>
             </form>
         </div>
     </div>

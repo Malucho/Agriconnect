@@ -354,7 +354,7 @@ function calculateAverageRating($product_id) {
     $result = $stmt->get_result();
     $row = $result->fetch_assoc();
     
-    return round($row['avg_rating'], 1) ?: 0;
+    return round($row['avg_rating'] ?? 0, 1) ?: 0;
 }
 
 /**

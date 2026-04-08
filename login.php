@@ -79,12 +79,13 @@ include_once 'includes/header.php';
 ?>
     
     <main>
-        <section class="form-section">
+        <section class="form-section auth-section">
             <div class="container">
-                <div class="form-container">
-                    <div class="form-title">
-                        <h2>Login to Your Account</h2>
-                        <p>Access your Agriconnect dashboard</p>
+                <div class="auth-container">
+                    <div class="auth-header">
+                        <img src="Images/Green and White Organic Agriculture Logo.png" alt="Agriconnect Logo" class="auth-logo">
+                        <h2>Welcome Back!</h2>
+                        <p>Login to your Agriconnect account</p>
                     </div>
                     
                     <?php if (!empty($errors)): ?>
@@ -97,10 +98,10 @@ include_once 'includes/header.php';
                         </div>
                     <?php endif; ?>
                     
-                    <form action="login.php" method="post">
+                    <form action="login.php" method="post" class="auth-form">
                         <div class="form-group">
                             <label for="email">Email Address</label>
-                            <input type="email" class="form-control" id="email" name="email" value="<?php echo isset($email) ? $email : ''; ?>" required>
+                            <input type="email" class="form-control" id="email" name="email" value="<?php echo isset($email) ? htmlspecialchars($email) : ''; ?>" required>
                         </div>
                         
                         <div class="form-group">
@@ -108,28 +109,28 @@ include_once 'includes/header.php';
                             <input type="password" class="form-control" id="password" name="password" required>
                         </div>
                         
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                            <label class="form-check-label" for="remember">Remember me</label>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">Login</button>
-                            <p><a href="forgot-password.php">Forgot Password?</a></p>
-                        </div>
-                        
-                        <div class="form-footer">
-                            <p>Don't have an account?</p>
-                            <div class="register-options">
-                                <a href="register.php?type=farmer" class="btn btn-outline">Register as Farmer</a>
-                                <a href="register.php?type=consumer" class="btn btn-outline">Register as Consumer</a>
+                        <div class="form-actions-auth">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                                <label class="form-check-label" for="remember">Remember me</label>
                             </div>
-                            <p style="margin-top: 10px; font-size: 0.8rem;">
-                                <a href="admin/login.php" style="color: #777;">Admin Login</a> | 
-                                <a href="admin/register.php" style="color: #777;">Admin Register</a>
-                            </p>
+                            <a href="forgot-password.php" class="forgot-password-link">Forgot Password?</a>
                         </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-block">Login</button>
                     </form>
+                    
+                    <div class="auth-footer">
+                        <p>Don't have an account?</p>
+                        <div class="register-options">
+                            <a href="register.php?type=farmer" class="btn btn-outline-secondary">Register as Farmer</a>
+                            <a href="register.php?type=consumer" class="btn btn-outline-primary">Register as Consumer</a>
+                        </div>
+                        <p class="admin-links">
+                            <a href="admin/login.php">Admin Login</a> | 
+                            <a href="admin/register.php">Admin Register</a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </section>
