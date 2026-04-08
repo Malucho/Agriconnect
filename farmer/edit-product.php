@@ -212,7 +212,7 @@ include '../includes/header.php';
                         <label for="image">Change Product Image</label>
                         <?php if ($product['image']): ?>
                             <div class="current-image" style="margin-bottom: 10px;">
-                                <img src="../uploads/products/<?php echo $product['image']; ?>" alt="Current Image" style="max-width: 200px; border-radius: 4px;">
+                                <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo $product['image']; ?>" alt="Current Image" style="max-width: 200px; border-radius: 4px;">
                                 <p><small>Current Image</small></p>
                             </div>
                         <?php endif; ?>

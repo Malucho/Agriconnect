@@ -173,9 +173,9 @@ include_once 'includes/header.php';
                             <div class="product-card">
                                 <div class="product-image">
                                     <?php if (!empty($product['image'])): ?>
-                                        <img src="uploads/products/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                                        <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
                                     <?php else: ?>
-                                        <img src="assets/images/product-placeholder.jpg" alt="No image available">
+                                        <img src="<?php echo SITE_URL; ?>/assets/images/product-placeholder.jpg" alt="No image available">
                                     <?php endif; ?>
                                 </div>
                                 <div class="product-info">

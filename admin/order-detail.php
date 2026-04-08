@@ -136,7 +136,7 @@ include '../includes/header.php';
                                     <td>
                                         <div style="display: flex; align-items: center; gap: 10px;">
                                             <?php if ($item['image']): ?>
-                                                <img src="../uploads/products/<?php echo $item['image']; ?>" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover;">
+                                                <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo $item['image']; ?>" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover;">
                                             <?php endif; ?>
                                             <span><?php echo htmlspecialchars($item['product_name']); ?></span>
                                         </div>

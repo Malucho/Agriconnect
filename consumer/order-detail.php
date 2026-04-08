@@ -120,7 +120,7 @@ include '../includes/header.php';
                             <td>
                                 <div class="product-info-cell">
                                     <?php if ($item['image']): ?>
-                                        <img src="../uploads/products/<?php echo $item['image']; ?>" alt="Product Image" class="product-thumb">
+                                        <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo $item['image']; ?>" alt="Product Image" class="product-thumb">
                                     <?php endif; ?>
                                     <span><?php echo htmlspecialchars($item['name']); ?></span>
                                 </div>

@@ -258,7 +258,7 @@ include 'includes/header.php';
                             <div class="summary-item" style="display: flex; gap: 12px; margin-bottom: 10px;">
                                 <div class="item-image" style="width: 50px; height: 50px; border-radius: 4px; overflow: hidden; background: #eee; flex-shrink: 0;">
                                     <?php if ($item['image']): ?>
-                                        <img src="uploads/products/<?php echo htmlspecialchars($item['image']); ?>" alt="Product" style="width: 100%; height: 100%; object-fit: cover;">
+                                        <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo htmlspecialchars($item['image']); ?>" alt="Product" style="width: 100%; height: 100%; object-fit: cover;">
                                     <?php else: ?>
                                         <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #ccc;"><i class="fas fa-image"></i></div>
                                     <?php endif; ?>

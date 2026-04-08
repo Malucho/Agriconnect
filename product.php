@@ -98,11 +98,11 @@ include_once 'includes/header.php';
                     <div class="product-gallery">
                         <?php if (!empty($product['image'])): ?>
                             <div class="main-image">
-                                <img id="main-product-image" src="uploads/products/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                                <img id="main-product-image" src="<?php echo SITE_URL; ?>/uploads/products/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
                             </div>
                         <?php else: ?>
                             <div class="main-image">
-                                <img src="assets/images/product-placeholder.jpg" alt="No image available">
+                                <img src="<?php echo SITE_URL; ?>/assets/images/product-placeholder.jpg" alt="No image available">
                             </div>
                         <?php endif; ?>
                     </div>

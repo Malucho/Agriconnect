@@ -86,6 +86,7 @@ include '../includes/header.php';
                 <thead>
                     <tr>
                         <th>ID</th>
+                        <th>Image</th>
                         <th>Product Name</th>
                         <th>Farmer</th>
                         <th>Category</th>
@@ -98,6 +99,13 @@ include '../includes/header.php';
                     <?php foreach ($products as $product): ?>
                     <tr>
                         <td>#<?php echo $product['id']; ?></td>
+                        <td>
+                            <?php if (!empty($product['image'])): ?>
+                                <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo htmlspecialchars($product['image']); ?>" alt="Product" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                            <?php else: ?>
+                                <img src="<?php echo SITE_URL; ?>/assets/images/product-placeholder.jpg" alt="No image" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                            <?php endif; ?>
+                        </td>
                         <td><?php echo htmlspecialchars($product['name']); ?></td>
                         <td><?php echo htmlspecialchars($product['first_name'] . ' ' . $product['last_name']); ?></td>
                         <td><?php echo htmlspecialchars($product['category_name']); ?></td>

@@ -176,9 +176,9 @@ include '../includes/header.php';
                     <div class="product-card">
                         <div class="product-image">
                             <?php if ($product['image']): ?>
-                                <img src="../uploads/products/<?php echo $product['image']; ?>" alt="<?php echo $product['name']; ?>">
+                                <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo $product['image']; ?>" alt="<?php echo $product['name']; ?>">
                             <?php else: ?>
-                                <img src="../assets/images/product-placeholder.jpg" alt="No image">
+                                <img src="<?php echo SITE_URL; ?>/assets/images/product-placeholder.jpg" alt="No image">
                             <?php endif; ?>
                             
                             <div class="product-status">

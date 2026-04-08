@@ -191,7 +191,7 @@ include '../includes/header.php';
                                     <td class="product-cell">
                                         <div class="product-info" style="display: flex; align-items: center; gap: 10px;">
                                             <?php if ($item['image']): ?>
-                                                <img src="<?php echo '../uploads/products/' . htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['product_name']); ?>" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                                                <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['product_name']); ?>" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
                                             <?php else: ?>
                                                 <div class="no-image" style="width: 50px; height: 50px; background: #eee; display: flex; align-items: center; justify-content: center; border-radius: 4px;"><i class="fas fa-image"></i></div>
                                             <?php endif; ?>

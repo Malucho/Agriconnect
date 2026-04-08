@@ -63,6 +63,9 @@ include '../includes/header.php';
     <div class="dashboard-content">
         <div class="content-header">
             <h1>Welcome back, <?php echo htmlspecialchars($_SESSION['first_name']); ?>!</h1>
+            <div class="header-actions">
+                <a href="../cart.php" class="btn-primary" style="padding: 10px 20px; border-radius: 8px;"><i class="fas fa-shopping-cart"></i> View My Cart</a>
+            </div>
         </div>
         
         <?php displayFlashMessages(); ?>
@@ -78,7 +81,7 @@ include '../includes/header.php';
                 </div>
             </div>
             
-            <div class="stat-card">
+            <a href="../cart.php" class="stat-card" style="text-decoration: none; color: inherit;">
                 <div class="stat-icon orders-icon">
                     <i class="fas fa-shopping-cart"></i>
                 </div>
@@ -86,7 +89,7 @@ include '../includes/header.php';
                     <h3>Items in Cart</h3>
                     <p class="stat-number"><?php echo count($_SESSION['cart'] ?? []); ?></p>
                 </div>
-            </div>
+            </a>
         </div>
 
         <div class="dashboard-grid">

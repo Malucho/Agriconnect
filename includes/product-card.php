@@ -1,9 +1,9 @@
 <div class="product-card">
     <div class="product-image">
         <?php if (!empty($product['image'])): ?>
-            <img src="uploads/products/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+            <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
         <?php else: ?>
-            <img src="assets/images/product-placeholder.jpg" alt="No image available">
+            <img src="<?php echo SITE_URL; ?>/assets/images/product-placeholder.jpg" alt="No image available">
         <?php endif; ?>
     </div>
     <div class="product-info">
@@ -18,9 +18,9 @@
         </div>
         <div class="product-farmer">
             <?php if (!empty($product['profile_image'])): ?>
-                <img src="uploads/profiles/<?php echo htmlspecialchars($product['profile_image']); ?>" alt="Farmer">
+                <img src="<?php echo SITE_URL; ?>/uploads/profiles/<?php echo htmlspecialchars($product['profile_image']); ?>" alt="Farmer">
             <?php else: ?>
-                <img src="assets/images/farmer-placeholder.jpg" alt="Farmer">
+                <img src="<?php echo SITE_URL; ?>/assets/images/farmer-placeholder.jpg" alt="Farmer">
             <?php endif; ?>
             <span><?php echo htmlspecialchars($product['first_name'] . ' ' . $product['last_name']); ?></span>
         </div>

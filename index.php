@@ -20,7 +20,7 @@ include_once 'includes/header.php';
                     </div>
                 </div>
                 <div class="hero-image">
-                    <img src="Images/autonomous-agriculture.webp" alt="Farmers and fresh produce">
+                    <img src="<?php echo SITE_URL; ?>/Images/autonomous-agriculture.webp" alt="Farmers and fresh produce">
                 </div>
             </div>
         </section>
@@ -109,7 +109,7 @@ include_once 'includes/header.php';
                     <div class="testimonial-card">
                         <p class="testimonial-text">"Agriconnect has revolutionized my farming business. I now sell directly to consumers at much better prices than I ever received from middlemen. It's a game-changer!"</p>
                         <div class="testimonial-author">
-                            <img src="Images/istockphoto-518782849-612x612.jpg" alt="John Mwangi" class="author-avatar">
+                            <img src="<?php echo SITE_URL; ?>/Images/istockphoto-518782849-612x612.jpg" alt="John Mwangi" class="author-avatar">
                             <div>
                                 <p class="author-name">John Mwangi</p>
                                 <p class="author-title">Small-scale Farmer, Nyeri</p>
@@ -119,7 +119,7 @@ include_once 'includes/header.php';
                     <div class="testimonial-card">
                         <p class="testimonial-text">"I absolutely love Agriconnect! The produce is incredibly fresh, and I feel great knowing I'm supporting local farmers directly. It's convenient and affordable."</p>
                         <div class="testimonial-author">
-                            <img src="Images/Green and White Organic Agriculture Logo.png" alt="Sarah Ochieng" class="author-avatar">
+                            <img src="<?php echo SITE_URL; ?>/Images/Green and White Organic Agriculture Logo.png" alt="Sarah Ochieng" class="author-avatar">
                             <div>
                                 <p class="author-name">Sarah Ochieng</p>
                                 <p class="author-title">Consumer, Nairobi</p>

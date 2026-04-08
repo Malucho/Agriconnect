@@ -143,7 +143,7 @@ include_once 'includes/header.php';
                                             <td>
                                                 <div class="cart-product">
                                                     <?php if ($item['image']): ?>
-                                                        <img src="uploads/products/<?php echo htmlspecialchars($item['image']); ?>" alt="Product" class="cart-product-img">
+                                                        <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo htmlspecialchars($item['image']); ?>" alt="Product" class="cart-product-img">
                                                     <?php else: ?>
                                                         <div class="cart-product-img" style="display: flex; align-items: center; justify-content: center; color: #ccc;"><i class="fas fa-image fa-2x"></i></div>
                                                     <?php endif; ?>
